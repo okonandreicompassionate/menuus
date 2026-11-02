@@ -45,7 +45,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({ label, value
           className="sr-only"
         />
       </label>
-      <p className="text-xs text-stone-500">JPG, PNG or WebP · up to 5 MB</p>
+      <p className="text-xs text-stone-500">JPG, PNG or WebP · up to 3 MB</p>
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
     </div>
   );

@@ -165,8 +165,8 @@ export const StorageService = {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       throw new Error('Choose a JPG, PNG, or WebP image.');
     }
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error('Image files must be 5 MB or smaller.');
+    if (file.size > 3 * 1024 * 1024) {
+      throw new Error('Image files must be 3 MB or smaller.');
     }
     const dataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
