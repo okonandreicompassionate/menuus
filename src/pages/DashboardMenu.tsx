@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Check, X, Search, Image as ImageIcon } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { MenuItem, Category } from '../types';
+import { ImageUploadField } from '../components/ImageUploadField';
 
 export const DashboardMenu: React.FC = () => {
   const currentUser = StorageService.getCurrentUser();
@@ -290,16 +291,7 @@ export const DashboardMenu: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-1">Image URL</label>
-                <input
-                  type="url"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full bg-stone-800 border border-stone-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-600"
-                />
-              </div>
+              <ImageUploadField label="Dish photo" value={image} purpose="menu" onChange={setImage} />
 
               <div className="flex items-center gap-3 pt-2">
                 <input
@@ -310,7 +302,7 @@ export const DashboardMenu: React.FC = () => {
                   className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 bg-stone-800 border-stone-700"
                 />
                 <label htmlFor="isAvailable" className="text-sm font-medium text-white">
-                  Item is currently available for order
+                  Item is currently available on the public menu
                 </label>
               </div>
 

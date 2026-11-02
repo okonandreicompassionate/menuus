@@ -19,6 +19,7 @@ export const DEMO_RESTAURANT: Restaurant = {
   isOpen: true,
   theme: 'warm',
   plan: 'Pro',
+  status: 'active',
   createdAt: new Date().toISOString(),
 };
 

@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import 'dotenv/config';
-import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { env } from 'node:process';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -33,12 +33,13 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 app.disable('x-powered-by');
-app.use(express.json({ limit: '16kb' }));
+app.use(express.json({ limit: '7mb' }));
 
 type AppUser = {
   id: string;
   email: string;
   name: string;
+  role: 'owner' | 'admin';
 };
 
 type RestaurantRow = {
@@ -56,6 +57,7 @@ type RestaurantRow = {
   is_open: boolean;
   theme: 'warm' | 'dark' | 'clean';
   plan: 'Starter' | 'Pro' | 'Premium';
+  status: 'active' | 'suspended';
   created_at: string;
 };
 
@@ -139,7 +141,7 @@ async function createSession(userId: string, res: Response) {
 
 async function getProfile(userId: string): Promise<AccountProfile | null> {
   const [{ data: user, error: userError }, { data: restaurant, error: restaurantError }] = await Promise.all([
-    supabase.from('app_users').select('id,email,name').eq('id', userId).maybeSingle(),
+    supabase.from('app_users').select('id,email,name,role').eq('id', userId).maybeSingle(),
     supabase.from('restaurants').select('*').eq('user_id', userId).maybeSingle(),
   ]);
   if (userError) throw userError;
@@ -178,6 +180,7 @@ function mapRestaurant(row: RestaurantRow) {
     isOpen: row.is_open,
     theme: row.theme,
     plan: row.plan,
+    status: row.status,
     createdAt: row.created_at,
   };
 }
@@ -242,6 +245,15 @@ async function authenticatedProfile(req: Request, res: Response): Promise<Accoun
   return profile;
 }
 
+async function adminProfile(req: Request, res: Response): Promise<AccountProfile | null> {
+  const profile = await authenticatedProfile(req, res);
+  if (profile && profile.user.role !== 'admin') {
+    res.status(403).json({ error: 'Administrator access is required.' });
+    return null;
+  }
+  return profile;
+}
+
 async function ownedRestaurant(profile: AccountProfile) {
   const { data, error } = await supabase.from('restaurants').select('*').eq('id', profile.restaurant.id).eq('user_id', profile.user.id).maybeSingle();
   if (error) throw error;
@@ -249,6 +261,21 @@ async function ownedRestaurant(profile: AccountProfile) {
 }
 
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+function decodeImageData(value: unknown): { bytes: Buffer; mimeType: string; extension: string } | null {
+  if (typeof value !== 'string') return null;
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if (!match) return null;
+  const mimeType = match[1];
+  const bytes = Buffer.from(match[2], 'base64');
+  if (bytes.length === 0 || bytes.length > 5 * 1024 * 1024) return null;
+
+  const isJpeg = mimeType === 'image/jpeg' && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const isPng = mimeType === 'image/png' && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const isWebp = mimeType === 'image/webp' && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
+  if (!isJpeg && !isPng && !isWebp) return null;
+  return { bytes, mimeType, extension: mimeType === 'image/jpeg' ? 'jpg' : mimeType.slice('image/'.length) };
+}
 
 app.use('/api', (req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
@@ -328,7 +355,7 @@ app.post('/api/auth/signup', asyncRoute(async (req, res) => {
   }
   await createSession(row.user_id, res);
   res.status(201).json({
-    user: { id: row.user_id, email: row.email, name: row.name, restaurantId: row.restaurant_id },
+    user: { id: row.user_id, email: row.email, name: row.name, restaurantId: row.restaurant_id, role: 'owner' },
     restaurant: {
       id: row.restaurant_id,
       userId: row.user_id,
@@ -344,6 +371,7 @@ app.post('/api/auth/signup', asyncRoute(async (req, res) => {
       isOpen: row.is_open,
       theme: row.theme,
       plan: row.plan,
+      status: 'active',
       createdAt: row.created_at,
     },
   });
@@ -380,6 +408,7 @@ app.post('/api/auth/login', asyncRoute(async (req, res) => {
       email: profile.user.email,
       name: profile.user.name,
       restaurantId: profile.restaurant.id,
+      role: profile.user.role,
     },
     restaurant: {
       id: profile.restaurant.id,
@@ -396,6 +425,7 @@ app.post('/api/auth/login', asyncRoute(async (req, res) => {
       isOpen: profile.restaurant.is_open,
       theme: profile.restaurant.theme,
       plan: profile.restaurant.plan,
+      status: profile.restaurant.status,
       createdAt: profile.restaurant.created_at,
     },
   });
@@ -413,6 +443,7 @@ app.get('/api/auth/me', asyncRoute(async (req, res) => {
       email: profile.user.email,
       name: profile.user.name,
       restaurantId: profile.restaurant.id,
+      role: profile.user.role,
     },
     restaurant: {
       id: profile.restaurant.id,
@@ -429,6 +460,7 @@ app.get('/api/auth/me', asyncRoute(async (req, res) => {
       isOpen: profile.restaurant.is_open,
       theme: profile.restaurant.theme,
       plan: profile.restaurant.plan,
+      status: profile.restaurant.status,
       createdAt: profile.restaurant.created_at,
     },
   });
@@ -468,6 +500,85 @@ app.get('/api/dashboard', asyncRoute(async (req, res) => {
   });
 }));
 
+app.get('/api/admin/restaurants', asyncRoute(async (req, res) => {
+  const profile = await adminProfile(req, res);
+  if (!profile) return;
+  const [restaurantsResult, usersCountResult, restaurantsCountResult, activeCountResult] = await Promise.all([
+    supabase.from('restaurants').select('id,user_id,name,slug,status,plan,created_at').order('created_at', { ascending: false }).limit(500),
+    supabase.from('app_users').select('id', { count: 'exact', head: true }),
+    supabase.from('restaurants').select('id', { count: 'exact', head: true }),
+    supabase.from('restaurants').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+  ]);
+  if (restaurantsResult.error) throw restaurantsResult.error;
+  if (usersCountResult.error) throw usersCountResult.error;
+  if (restaurantsCountResult.error) throw restaurantsCountResult.error;
+  if (activeCountResult.error) throw activeCountResult.error;
+
+  const ownerIds = [...new Set((restaurantsResult.data || []).map(restaurant => restaurant.user_id))];
+  const ownersResult = ownerIds.length
+    ? await supabase.from('app_users').select('id,name,email').in('id', ownerIds)
+    : { data: [], error: null };
+  if (ownersResult.error) throw ownersResult.error;
+  const ownersById = new Map((ownersResult.data || []).map(owner => [owner.id, owner]));
+
+  res.json({
+    totalUsers: usersCountResult.count || 0,
+    totalRestaurants: restaurantsCountResult.count || 0,
+    activeRestaurants: activeCountResult.count || 0,
+    restaurants: (restaurantsResult.data || []).flatMap(restaurant => {
+      const owner = ownersById.get(restaurant.user_id);
+      return owner ? [{
+        id: restaurant.id,
+        name: restaurant.name,
+        slug: restaurant.slug,
+        status: restaurant.status,
+        plan: restaurant.plan,
+        createdAt: restaurant.created_at,
+        owner,
+      }] : [];
+    }),
+  });
+}));
+
+app.patch('/api/admin/restaurants/:id/status', asyncRoute(async (req, res) => {
+  const profile = await adminProfile(req, res);
+  if (!profile) return;
+  const status = req.body?.status;
+  if (!isUuid(req.params.id) || !['active', 'suspended'].includes(status)) {
+    res.status(400).json({ error: 'Choose a valid restaurant status.' });
+    return;
+  }
+  const { data, error } = await supabase.from('restaurants').update({ status })
+    .eq('id', req.params.id).select('id,status').maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    res.status(404).json({ error: 'Restaurant not found.' });
+    return;
+  }
+  res.json({ id: data.id, status: data.status });
+}));
+
+app.post('/api/images', asyncRoute(async (req, res) => {
+  const profile = await authenticatedProfile(req, res);
+  if (!profile) return;
+  const restaurant = await ownedRestaurant(profile);
+  const purpose = req.body?.purpose;
+  const image = decodeImageData(req.body?.dataUrl);
+  if (!restaurant || !['menu', 'logo', 'cover'].includes(purpose) || !image) {
+    res.status(400).json({ error: 'Upload a valid JPG, PNG, or WebP image up to 5 MB.' });
+    return;
+  }
+  const objectPath = `restaurants/${restaurant.id}/${purpose}/${randomUUID()}.${image.extension}`;
+  const { data, error } = await supabase.storage.from('menudrop-images').upload(objectPath, image.bytes, {
+    contentType: image.mimeType,
+    cacheControl: '31536000',
+    upsert: false,
+  });
+  if (error) throw error;
+  const { data: publicUrl } = supabase.storage.from('menudrop-images').getPublicUrl(data.path);
+  res.status(201).json({ url: publicUrl.publicUrl });
+}));
+
 app.get('/api/storefront/:slug', asyncRoute(async (req, res) => {
   const slug = normalizeText(req.params.slug, 64);
   if (!slug) {
@@ -478,6 +589,10 @@ app.get('/api/storefront/:slug', asyncRoute(async (req, res) => {
   if (error) throw error;
   if (!restaurant) {
     res.status(404).json({ error: 'Restaurant not found.' });
+    return;
+  }
+  if (restaurant.status === 'suspended') {
+    res.status(404).json({ error: 'This restaurant menu is currently unavailable.' });
     return;
   }
   const [categoriesResult, menuResult] = await Promise.all([

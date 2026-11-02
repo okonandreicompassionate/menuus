@@ -7,6 +7,7 @@ import {
   FolderKanban,
   Settings,
   QrCode,
+  ShieldCheck,
   LogOut,
   ExternalLink,
   ChevronDown,
@@ -66,6 +67,7 @@ export const DashboardLayout: React.FC = () => {
     { label: 'Categories', path: '/dashboard/categories', icon: FolderKanban },
     { label: 'Store Settings', path: '/dashboard/settings', icon: Settings },
     { label: 'Storefront & QR', path: '/dashboard/storefront', icon: QrCode },
+    ...(currentUser?.role === 'admin' ? [{ label: 'Admin Dashboard', path: '/admin', icon: ShieldCheck }] : []),
   ];
 
   if (isCheckingSession) {

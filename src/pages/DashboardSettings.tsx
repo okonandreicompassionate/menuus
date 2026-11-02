@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Store, Save, CheckCircle2 } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { Restaurant } from '../types';
+import { ImageUploadField } from '../components/ImageUploadField';
 
 export const DashboardSettings: React.FC = () => {
   const currentUser = StorageService.getCurrentUser();
@@ -95,26 +96,9 @@ export const DashboardSettings: React.FC = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Logo Image URL</label>
-            <input
-              type="url"
-              value={logo}
-              onChange={(e) => setLogo(e.target.value)}
-              className="w-full bg-stone-800 border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Cover Image URL</label>
-            <input
-              type="url"
-              value={coverImage}
-              onChange={(e) => setCoverImage(e.target.value)}
-              className="w-full bg-stone-800 border border-stone-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-600"
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <ImageUploadField label="Restaurant logo" value={logo} purpose="logo" onChange={setLogo} />
+          <ImageUploadField label="Restaurant cover photo" value={coverImage} purpose="cover" onChange={setCoverImage} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

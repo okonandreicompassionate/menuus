@@ -3,8 +3,13 @@ create table if not exists public.app_users (
   email text not null unique,
   name text not null,
   password_hash text not null,
+  role text not null default 'owner' check (role in ('owner', 'admin')),
   created_at timestamptz not null default now()
 );
+
+alter table public.app_users add column if not exists role text not null default 'owner';
+alter table public.app_users drop constraint if exists app_users_role_check;
+alter table public.app_users add constraint app_users_role_check check (role in ('owner', 'admin'));
 
 create table if not exists public.restaurants (
   id uuid primary key default gen_random_uuid(),
@@ -21,8 +26,13 @@ create table if not exists public.restaurants (
   is_open boolean not null default true,
   theme text not null default 'warm' check (theme in ('warm', 'dark', 'clean')),
   plan text not null default 'Starter' check (plan in ('Starter', 'Pro', 'Premium')),
+  status text not null default 'active' check (status in ('active', 'suspended')),
   created_at timestamptz not null default now()
 );
+
+alter table public.restaurants add column if not exists status text not null default 'active';
+alter table public.restaurants drop constraint if exists restaurants_status_check;
+alter table public.restaurants add constraint restaurants_status_check check (status in ('active', 'suspended'));
 
 create table if not exists public.auth_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -145,3 +155,13 @@ $$;
 
 revoke all on function public.register_app_user(text, text, text, text, text, text) from public, anon, authenticated;
 grant execute on function public.register_app_user(text, text, text, text, text, text) to service_role;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('menudrop-images', 'menudrop-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+-- After creating your account, replace the email below and run this once to grant admin access:
+-- update public.app_users set role = 'admin' where lower(email) = lower('you@example.com');

@@ -3,6 +3,7 @@ export interface User {
   email: string;
   name: string;
   restaurantId: string;
+  role: 'owner' | 'admin';
 }
 
 export interface Restaurant {
@@ -20,7 +21,18 @@ export interface Restaurant {
   isOpen: boolean;
   theme: 'warm' | 'dark' | 'clean';
   plan: 'Starter' | 'Pro' | 'Premium';
+  status: 'active' | 'suspended';
   createdAt: string;
+}
+
+export interface AdminRestaurant {
+  id: string;
+  name: string;
+  slug: string;
+  status: 'active' | 'suspended';
+  plan: Restaurant['plan'];
+  createdAt: string;
+  owner: { id: string; name: string; email: string };
 }
 
 export interface Category {

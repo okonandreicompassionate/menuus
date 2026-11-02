@@ -1,4 +1,4 @@
-import { Restaurant, Category, MenuItem, Order, User } from '../types';
+import { AdminRestaurant, Restaurant, Category, MenuItem, Order, User } from '../types';
 import { readApiResponse } from './http';
 import { DEMO_CATEGORIES, DEMO_MENU_ITEMS, DEMO_RESTAURANT } from '../data/mockData';
 
@@ -159,5 +159,37 @@ export const StorageService = {
     orders: Order[];
   }> {
     return apiRequest('/api/dashboard');
+  },
+
+  async uploadImage(file: File, purpose: 'menu' | 'logo' | 'cover'): Promise<string> {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      throw new Error('Choose a JPG, PNG, or WebP image.');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Image files must be 5 MB or smaller.');
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string'
+        ? resolve(reader.result)
+        : reject(new Error('Could not read the selected image.'));
+      reader.onerror = () => reject(new Error('Could not read the selected image.'));
+      reader.readAsDataURL(file);
+    });
+    const result = await apiRequest<{ url: string }>('/api/images', 'POST', { dataUrl, purpose });
+    return result.url;
+  },
+
+  async getAdminRestaurants(): Promise<{
+    restaurants: AdminRestaurant[];
+    totalUsers: number;
+    totalRestaurants: number;
+    activeRestaurants: number;
+  }> {
+    return apiRequest('/api/admin/restaurants');
+  },
+
+  async setRestaurantStatus(id: string, status: 'active' | 'suspended'): Promise<void> {
+    await apiRequest<void>(`/api/admin/restaurants/${encodeURIComponent(id)}/status`, 'PATCH', { status });
   },
 };
