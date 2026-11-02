@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -15,13 +14,8 @@ import { DashboardCategories } from './pages/DashboardCategories';
 import { DashboardOrders } from './pages/DashboardOrders';
 import { DashboardSettings } from './pages/DashboardSettings';
 import { DashboardStorefront } from './pages/DashboardStorefront';
-import { StorageService } from './services/storage';
 
 export default function App() {
-  useEffect(() => {
-    StorageService.init();
-  }, []);
-
   return (
     <BrowserRouter>
       <Routes>

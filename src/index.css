@@ -1,1 +1,268 @@
 @import "tailwindcss";
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #20251f;
+  background: #f7f5ef;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  transition-duration: 180ms;
+}
+
+[data-marketing] h1,
+[data-marketing] h2,
+[data-marketing] h3,
+[data-marketing] h4 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+[data-marketing] .bg-orange-600 {
+  background-color: #304638;
+}
+
+[data-marketing] .hover\:bg-orange-700:hover {
+  background-color: #22362a;
+}
+
+[data-marketing] .text-orange-600,
+[data-marketing] .text-orange-500 {
+  color: #65745a;
+}
+
+[data-marketing] .border-orange-600 {
+  border-color: #718369;
+}
+
+[data-marketing] .ring-orange-600\/20 {
+  --tw-ring-color: rgb(113 131 105 / 0.2);
+}
+
+[data-marketing] .bg-orange-600\/10 {
+  background-color: rgb(113 131 105 / 0.1);
+}
+
+[data-marketing] .bg-orange-600\/20 {
+  background-color: rgb(113 131 105 / 0.12);
+}
+
+[data-marketing] .hover\:border-orange-600\/50:hover {
+  border-color: rgb(113 131 105 / 0.4);
+}
+
+[data-marketing] .group:hover .group-hover\:text-orange-600\/20 {
+  color: rgb(113 131 105 / 0.2);
+}
+
+[data-marketing] .shadow-orange-600\/25,
+[data-marketing] .shadow-orange-600\/30,
+[data-marketing] .shadow-orange-600\/20 {
+  --tw-shadow-color: rgb(48 70 56 / 0.12);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+.auth-input {
+  display: block;
+  width: 100%;
+  border: 1px solid #e5e0d5;
+  border-radius: 0.85rem;
+  background: #fbfaf7;
+  padding: 0.78rem 0.8rem 0.78rem 2.85rem;
+  color: #20251f;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.auth-input::placeholder {
+  color: #a7a49b;
+}
+
+.auth-input:focus {
+  border-color: #84937a;
+  background: white;
+  box-shadow: 0 0 0 4px rgb(113 131 105 / 0.12);
+}
+
+[data-dashboard] {
+  background: #f6f5f0;
+  color: #26332a;
+}
+
+[data-dashboard] h2,
+[data-dashboard] h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+[data-dashboard] .bg-stone-950 {
+  background-color: #f6f5f0;
+}
+
+[data-dashboard] .bg-stone-900 {
+  background-color: #fff;
+}
+
+[data-dashboard] .bg-stone-800 {
+  background-color: #f2f0e9;
+}
+
+[data-dashboard] .bg-stone-700,
+[data-dashboard] .bg-stone-700\/60 {
+  background-color: #eeece4;
+}
+
+[data-dashboard] .bg-stone-800\/60,
+[data-dashboard] .bg-stone-800\/50,
+[data-dashboard] .bg-stone-800\/40,
+[data-dashboard] .bg-stone-800\/30 {
+  background-color: #f8f7f3;
+}
+
+[data-dashboard] .text-white,
+[data-dashboard] .text-stone-100 {
+  color: #26332a;
+}
+
+[data-dashboard] .text-stone-300 {
+  color: #5e665d;
+}
+
+[data-dashboard] .text-stone-400,
+[data-dashboard] .text-stone-500 {
+  color: #797c73;
+}
+
+[data-dashboard] .text-orange-500,
+[data-dashboard] .text-orange-400 {
+  color: #65745a;
+}
+
+[data-dashboard] .border-stone-800,
+[data-dashboard] .border-stone-700,
+[data-dashboard] .border-stone-700\/50 {
+  border-color: #e8e5dc;
+}
+
+[data-dashboard] .bg-orange-600 {
+  background-color: #4b5a4d;
+}
+
+[data-dashboard] .hover\:bg-orange-700:hover {
+  background-color: #3b4a3e;
+}
+
+[data-dashboard] a.bg-orange-600,
+[data-dashboard] button.bg-orange-600,
+[data-dashboard] .bg-orange-600 .text-white {
+  color: #fff;
+}
+
+[data-dashboard] nav a.bg-orange-600 {
+  background-color: #e9ece5;
+  box-shadow: none;
+  color: #3c4d40;
+}
+
+[data-dashboard] nav a.bg-orange-600:hover {
+  background-color: #e2e7dd;
+  color: #334438;
+}
+
+[data-dashboard] .shadow-orange-600\/25,
+[data-dashboard] .shadow-orange-600\/30,
+[data-dashboard] .shadow-orange-600\/20 {
+  --tw-shadow-color: rgb(65 78 66 / 0.12);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+[data-dashboard] .bg-orange-500\/20 {
+  background-color: #f0eee7;
+}
+
+[data-dashboard] .bg-orange-600\/10,
+[data-dashboard] .bg-orange-600\/20 {
+  background-color: rgb(101 116 90 / 0.1);
+}
+
+[data-dashboard] .text-emerald-400 {
+  color: #62735d;
+}
+
+[data-dashboard] .dashboard-welcome {
+  background: linear-gradient(135deg, #fff 0%, #f2f3ed 100%);
+}
+
+[data-dashboard] aside {
+  border-color: #e8e5dc;
+  background-color: #fff;
+}
+
+[data-dashboard] main {
+  background-image: radial-gradient(ellipse at 75% -10%, rgb(213 220 204 / 0.42), transparent 34rem);
+}
+
+[data-dashboard] .from-orange-600\/20 {
+  --tw-gradient-from: rgb(213 220 204 / 0.6) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(213 220 204 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+[data-dashboard] input:not([type="checkbox"]),
+[data-dashboard] textarea,
+[data-dashboard] select {
+  border-color: #e2dfd5;
+  background-color: #fbfaf7;
+  color: #26332a;
+}
+
+[data-dashboard] input:not([type="checkbox"])::placeholder,
+[data-dashboard] textarea::placeholder {
+  color: #9a9a91;
+}
+
+[data-dashboard] .hover\:bg-stone-800:hover,
+[data-dashboard] .hover\:bg-stone-800\/60:hover,
+[data-dashboard] .hover\:bg-stone-700:hover {
+  background-color: #eeece4;
+}
+
+[data-dashboard] .hover\:text-white:hover {
+  color: #26332a;
+}
+
+[data-dashboard] .bg-black\/80,
+[data-dashboard] .bg-black\/70 {
+  background-color: rgb(24 31 25 / 0.62);
+}
+
+@media (max-width: 767px) {
+  [data-dashboard] aside {
+    background-color: #fff;
+  }
+}

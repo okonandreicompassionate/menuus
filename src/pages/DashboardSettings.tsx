@@ -17,9 +17,12 @@ export const DashboardSettings: React.FC = () => {
   const [openingHours, setOpeningHours] = useState(currentRestaurant.openingHours);
   const [isOpen, setIsOpen] = useState(currentRestaurant.isOpen);
   const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setSuccessMessage('');
     const updated: Restaurant = {
       ...currentRestaurant,
       name,
@@ -32,16 +35,20 @@ export const DashboardSettings: React.FC = () => {
       isOpen,
     };
 
-    StorageService.saveRestaurant(updated);
-    setSuccessMessage('Store settings saved successfully!');
-    setTimeout(() => setSuccessMessage(''), 3000);
+    try {
+      await StorageService.saveRestaurant(updated);
+      setSuccessMessage('Store settings saved successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save store settings.');
+    }
   };
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Store Settings</h2>
-        <p className="text-sm text-stone-400">Manage your restaurant branding, WhatsApp contact, and operating status.</p>
+        <p className="text-sm text-stone-400">Manage your restaurant branding, contact details, and public menu status.</p>
       </div>
 
       {successMessage && (
@@ -50,6 +57,7 @@ export const DashboardSettings: React.FC = () => {
           <span>{successMessage}</span>
         </div>
       )}
+      {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
 
       <form onSubmit={handleSave} className="bg-stone-900 border border-stone-800 rounded-3xl p-8 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -140,7 +148,7 @@ export const DashboardSettings: React.FC = () => {
             className="w-5 h-5 rounded text-orange-600 focus:ring-orange-500 bg-stone-800 border-stone-700"
           />
           <label htmlFor="isOpen" className="text-sm font-medium text-white">
-            Store is currently open for online orders
+            Restaurant is currently open to visitors
           </label>
         </div>
 

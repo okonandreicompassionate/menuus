@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Check, X, Search, Image as ImageIcon } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { MenuItem, Category } from '../types';
@@ -22,6 +23,7 @@ export const DashboardMenu: React.FC = () => {
   const [price, setPrice] = useState('');
   const [image, setImage] = useState('');
   const [isAvailable, setIsAvailable] = useState(true);
+  const [error, setError] = useState('');
 
   const handleOpenAddModal = () => {
     setEditingItem(null);
@@ -45,12 +47,13 @@ export const DashboardMenu: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveItem = (e: React.FormEvent) => {
+  const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !price || !categoryId) return;
+    setError('');
 
     const newItem: MenuItem = {
-      id: editingItem ? editingItem.id : 'item-' + Date.now(),
+      id: editingItem?.id || '',
       restaurantId: currentRestaurant.id,
       categoryId,
       name,
@@ -60,15 +63,24 @@ export const DashboardMenu: React.FC = () => {
       isAvailable,
     };
 
-    StorageService.saveMenuItem(newItem);
-    setMenuItems(StorageService.getMenuItems(currentRestaurant.id));
-    setIsModalOpen(false);
+    try {
+      await StorageService.saveMenuItem(newItem);
+      setMenuItems(StorageService.getMenuItems(currentRestaurant.id));
+      setIsModalOpen(false);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save this menu item.');
+    }
   };
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this menu item?')) {
-      StorageService.deleteMenuItem(id);
-      setMenuItems(StorageService.getMenuItems(currentRestaurant.id));
+      setError('');
+      try {
+        await StorageService.deleteMenuItem(id);
+        setMenuItems(StorageService.getMenuItems(currentRestaurant.id));
+      } catch (deleteError) {
+        setError(deleteError instanceof Error ? deleteError.message : 'Could not delete this menu item.');
+      }
     }
   };
 
@@ -88,11 +100,15 @@ export const DashboardMenu: React.FC = () => {
         </div>
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/25 text-sm whitespace-nowrap"
+          disabled={categories.length === 0}
+          title={categories.length === 0 ? 'Create a category before adding menu items' : undefined}
+          className="flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50 transition-colors shadow-lg shadow-orange-600/25 text-sm whitespace-nowrap"
         >
           <Plus className="w-4 h-4" /> Add Food Item
         </button>
       </div>
+
+      {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-stone-900 p-4 rounded-2xl border border-stone-800">
@@ -131,7 +147,19 @@ export const DashboardMenu: React.FC = () => {
       </div>
 
       {/* Menu Items Grid */}
-      {filteredItems.length === 0 ? (
+      {categories.length === 0 ? (
+        <div className="text-center py-20 bg-stone-900 rounded-3xl border border-stone-800 text-stone-400">
+          <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-40" />
+          <p className="text-base font-semibold">Create a category to start your menu</p>
+          <p className="text-xs text-stone-500 mt-1">Categories help customers browse your dishes.</p>
+          <Link
+            to="/dashboard/categories"
+            className="inline-flex mt-5 px-5 py-3 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700"
+          >
+            Create your first category
+          </Link>
+        </div>
+      ) : filteredItems.length === 0 ? (
         <div className="text-center py-20 bg-stone-900 rounded-3xl border border-stone-800 text-stone-400">
           <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-40" />
           <p className="text-base font-semibold">No menu items found</p>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   UtensilsCrossed,
@@ -7,7 +7,6 @@ import {
   FolderKanban,
   Settings,
   QrCode,
-  ShoppingBag,
   LogOut,
   ExternalLink,
   ChevronDown,
@@ -15,33 +14,81 @@ import {
   X
 } from 'lucide-react';
 import { StorageService } from '../services/storage';
+import { AuthService } from '../services/auth';
 import { Restaurant } from '../types';
 
 export const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const currentUser = StorageService.getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(StorageService.getCurrentUser());
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [sessionError, setSessionError] = useState('');
   const restaurants = StorageService.getRestaurants();
   const currentRestaurant: Restaurant = restaurants.find(r => r.id === currentUser?.restaurantId) || restaurants[0];
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    StorageService.setCurrentUser(null);
-    navigate('/login');
+  useEffect(() => {
+    let active = true;
+    AuthService.getSession().then(async ({ user }) => {
+      if (!active) return;
+      StorageService.setCurrentUser(user);
+      const dashboard = await StorageService.getDashboard();
+      if (!active) return;
+      StorageService.hydrateDashboard(dashboard);
+      setCurrentUser(user);
+      setIsCheckingSession(false);
+    }).catch((error: unknown) => {
+      if (!active) return;
+      StorageService.setCurrentUser(null);
+      setCurrentUser(null);
+      if (error instanceof Error && error.message !== 'Not signed in.') {
+        setSessionError(error.message);
+      }
+      setIsCheckingSession(false);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await AuthService.signOut();
+      StorageService.setCurrentUser(null);
+      navigate('/login');
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : 'Could not sign out. Please try again.');
+    }
   };
 
   const navItems = [
     { label: 'Overview', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Menu Items', path: '/dashboard/menu', icon: MenuIcon },
     { label: 'Categories', path: '/dashboard/categories', icon: FolderKanban },
-    { label: 'WhatsApp Orders', path: '/dashboard/orders', icon: ShoppingBag },
     { label: 'Store Settings', path: '/dashboard/settings', icon: Settings },
     { label: 'Storefront & QR', path: '/dashboard/storefront', icon: QrCode },
   ];
 
+  if (isCheckingSession) {
+    return <div className="min-h-screen bg-stone-950 text-stone-300 flex items-center justify-center">Checking your session…</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-300 flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <p>{sessionError || 'Please sign in to access your dashboard.'}</p>
+        <button onClick={() => navigate('/login')} className="rounded-xl bg-orange-600 px-5 py-3 font-semibold text-white">
+          Go to sign in
+        </button>
+      </div>
+    );
+  }
+
+  if (!currentRestaurant) {
+    return <div className="min-h-screen bg-stone-950 text-stone-300 flex items-center justify-center">Your restaurant profile could not be loaded.</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 flex flex-col md:flex-row font-sans selection:bg-orange-600 selection:text-white">
+    <div data-dashboard className="min-h-screen bg-stone-950 text-stone-100 flex flex-col md:flex-row font-sans selection:bg-orange-600 selection:text-white">
       {/* Mobile Top Header */}
       <div className="md:hidden flex items-center justify-between px-6 py-4 bg-stone-900 border-b border-stone-800">
         <div className="flex items-center gap-2.5">
@@ -77,12 +124,18 @@ export const DashboardLayout: React.FC = () => {
         {/* Restaurant selector info */}
         <div className="p-4 mx-4 mt-6 rounded-2xl bg-stone-800/60 border border-stone-700/50 flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
-            <img
-              src={currentRestaurant.logo}
-              alt={currentRestaurant.name}
-              className="w-10 h-10 rounded-xl object-cover border border-stone-700 shrink-0"
-              referrerPolicy="no-referrer"
-            />
+            {currentRestaurant.logo ? (
+              <img
+                src={currentRestaurant.logo}
+                alt={currentRestaurant.name}
+                className="w-10 h-10 rounded-xl object-cover border border-stone-700 shrink-0"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-stone-700 flex items-center justify-center text-stone-300 shrink-0">
+                <UtensilsCrossed className="w-5 h-5" />
+              </div>
+            )}
             <div className="truncate">
               <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">Active Store</p>
               <p className="text-sm font-bold text-white truncate">{currentRestaurant.name}</p>

@@ -9,24 +9,32 @@ export const DashboardOrders: React.FC = () => {
   const currentRestaurant = restaurants.find(r => r.id === currentUser?.restaurantId) || restaurants[0];
 
   const [orders, setOrders] = useState<Order[]>(StorageService.getOrders(currentRestaurant.id));
+  const [error, setError] = useState('');
 
-  const handleUpdateStatus = (orderId: string, status: 'pending' | 'completed' | 'cancelled') => {
-    StorageService.updateOrderStatus(orderId, status);
-    setOrders(StorageService.getOrders(currentRestaurant.id));
+  const handleUpdateStatus = async (orderId: string, status: 'pending' | 'completed' | 'cancelled') => {
+    setError('');
+    try {
+      await StorageService.updateOrderStatus(orderId, status);
+      setOrders(StorageService.getOrders(currentRestaurant.id));
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : 'Could not update order status.');
+    }
   };
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white">WhatsApp Orders</h2>
-        <p className="text-sm text-stone-400">Track and manage orders received from your digital storefront.</p>
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Order history</h2>
+        <p className="text-sm text-stone-400">Review orders already on record for your restaurant.</p>
       </div>
+
+      {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
 
       {orders.length === 0 ? (
         <div className="text-center py-20 bg-stone-900 rounded-3xl border border-stone-800 text-stone-400">
           <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-40" />
           <p className="text-base font-semibold">No orders received yet</p>
-          <p className="text-xs text-stone-500 mt-1">Orders placed via WhatsApp will appear here.</p>
+          <p className="text-xs text-stone-500 mt-1">Your public menu is view-only, so new orders are not created here.</p>
         </div>
       ) : (
         <div className="space-y-4">

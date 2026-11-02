@@ -1,6 +1,6 @@
 import { Restaurant, Category, MenuItem, Order, User } from '../types';
-import { DEMO_RESTAURANT, DEMO_CATEGORIES, DEMO_MENU_ITEMS, DEMO_ORDERS } from '../data/mockData';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { readApiResponse } from './http';
+import { DEMO_CATEGORIES, DEMO_MENU_ITEMS, DEMO_RESTAURANT } from '../data/mockData';
 
 const STORAGE_KEYS = {
   RESTAURANTS: 'menudrop_restaurants',
@@ -10,237 +10,154 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'menudrop_current_user',
 };
 
-export const StorageService = {
-  init() {
-    if (!localStorage.getItem(STORAGE_KEYS.RESTAURANTS)) {
-      localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify([DEMO_RESTAURANT]));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.CATEGORIES)) {
-      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(DEMO_CATEGORIES));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.MENU_ITEMS)) {
-      localStorage.setItem(STORAGE_KEYS.MENU_ITEMS, JSON.stringify(DEMO_MENU_ITEMS));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.ORDERS)) {
-      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(DEMO_ORDERS));
-    }
-    if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-      const defaultUser: User = {
-        id: 'user-demo',
-        email: 'owner@thepepperhouse.com',
-        name: 'Chef Tunde',
-        restaurantId: 'rest-pepper-house'
-      };
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(defaultUser));
-    }
-  },
+function readCache<T>(key: string): T[] {
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) as T[] : [];
+}
 
-  isSupabaseActive(): boolean {
-    return isSupabaseConfigured;
-  },
+async function apiRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  try {
+    const response = await fetch(path, {
+      method,
+      credentials: 'include',
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    return await readApiResponse<T>(response);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Cannot reach the app API. Start it with `npm run dev:api` and check its server configuration.');
+    }
+    throw error;
+  }
+}
+
+export const StorageService = {
+  init() {},
 
   getCurrentUser(): User | null {
-    this.init();
     const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-    return data ? JSON.parse(data) : null;
+    return data ? JSON.parse(data) as User : null;
   },
 
   setCurrentUser(user: User | null) {
-    if (user) {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    }
+    if (user) localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    else localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  },
+
+  hydrateDashboard(data: {
+    restaurant: Restaurant;
+    categories: Category[];
+    menuItems: MenuItem[];
+    orders: Order[];
+  }) {
+    localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify([data.restaurant]));
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
+    localStorage.setItem(STORAGE_KEYS.MENU_ITEMS, JSON.stringify(data.menuItems));
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(data.orders));
   },
 
   getRestaurants(): Restaurant[] {
-    this.init();
-    const data = localStorage.getItem(STORAGE_KEYS.RESTAURANTS);
-    return data ? JSON.parse(data) : [DEMO_RESTAURANT];
+    return readCache<Restaurant>(STORAGE_KEYS.RESTAURANTS);
   },
 
   getRestaurantById(id: string): Restaurant | undefined {
-    return this.getRestaurants().find(r => r.id === id);
-  },
-
-  getRestaurantBySlug(slug: string): Restaurant | undefined {
-    return this.getRestaurants().find(r => r.slug.toLowerCase() === slug.toLowerCase());
-  },
-
-  saveRestaurant(restaurant: Restaurant) {
-    const restaurants = this.getRestaurants();
-    const index = restaurants.findIndex(r => r.id === restaurant.id);
-    if (index >= 0) {
-      restaurants[index] = restaurant;
-    } else {
-      restaurants.push(restaurant);
-    }
-    localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify(restaurants));
-
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('restaurants').upsert({
-        id: restaurant.id,
-        user_id: restaurant.userId,
-        name: restaurant.name,
-        description: restaurant.description,
-        logo: restaurant.logo,
-        cover_image: restaurant.coverImage,
-        whatsapp_number: restaurant.whatsappNumber,
-        address: restaurant.address,
-        opening_hours: restaurant.openingHours,
-        currency: restaurant.currency,
-        slug: restaurant.slug,
-        is_open: restaurant.isOpen,
-        theme: restaurant.theme,
-        plan: restaurant.plan
-      }).then(({ error }) => {
-        if (error) console.error('Supabase saveRestaurant error:', error);
-      });
-    }
+    return this.getRestaurants().find(restaurant => restaurant.id === id);
   },
 
   getCategories(restaurantId: string): Category[] {
-    this.init();
-    const data = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-    const categories: Category[] = data ? JSON.parse(data) : DEMO_CATEGORIES;
-    return categories.filter(c => c.restaurantId === restaurantId).sort((a, b) => a.sortOrder - b.sortOrder);
+    return readCache<Category>(STORAGE_KEYS.CATEGORIES)
+      .filter(category => category.restaurantId === restaurantId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   },
 
-  saveCategory(category: Category) {
-    const data = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-    const categories: Category[] = data ? JSON.parse(data) : DEMO_CATEGORIES;
-    const index = categories.findIndex(c => c.id === category.id);
-    if (index >= 0) {
-      categories[index] = category;
-    } else {
-      categories.push(category);
-    }
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
-
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('categories').upsert({
-        id: category.id,
-        restaurant_id: category.restaurantId,
-        name: category.name,
-        sort_order: category.sortOrder
-      }).then(({ error }) => {
-        if (error) console.error('Supabase saveCategory error:', error);
-      });
-    }
+  async saveRestaurant(restaurant: Restaurant): Promise<Restaurant> {
+    const result = await apiRequest<Restaurant>('/api/restaurant', 'PUT', restaurant);
+    localStorage.setItem(STORAGE_KEYS.RESTAURANTS, JSON.stringify([result]));
+    return result;
   },
 
-  deleteCategory(categoryId: string) {
-    const data = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-    let categories: Category[] = data ? JSON.parse(data) : DEMO_CATEGORIES;
-    categories = categories.filter(c => c.id !== categoryId);
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+  async saveCategory(category: Category): Promise<Category> {
+    const result = await apiRequest<Category>(
+      category.id ? `/api/categories/${encodeURIComponent(category.id)}` : '/api/categories',
+      category.id ? 'PUT' : 'POST',
+      category,
+    );
+    const categories = readCache<Category>(STORAGE_KEYS.CATEGORIES).filter(item => item.id !== result.id);
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify([...categories, result]));
+    return result;
+  },
 
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('categories').delete().eq('id', categoryId).then(({ error }) => {
-        if (error) console.error('Supabase deleteCategory error:', error);
-      });
-    }
+  async deleteCategory(categoryId: string): Promise<void> {
+    await apiRequest<void>(`/api/categories/${encodeURIComponent(categoryId)}`, 'DELETE');
+    localStorage.setItem(
+      STORAGE_KEYS.CATEGORIES,
+      JSON.stringify(readCache<Category>(STORAGE_KEYS.CATEGORIES).filter(category => category.id !== categoryId)),
+    );
   },
 
   getMenuItems(restaurantId: string): MenuItem[] {
-    this.init();
-    const data = localStorage.getItem(STORAGE_KEYS.MENU_ITEMS);
-    const items: MenuItem[] = data ? JSON.parse(data) : DEMO_MENU_ITEMS;
-    return items.filter(i => i.restaurantId === restaurantId);
+    return readCache<MenuItem>(STORAGE_KEYS.MENU_ITEMS).filter(item => item.restaurantId === restaurantId);
   },
 
-  saveMenuItem(item: MenuItem) {
-    const data = localStorage.getItem(STORAGE_KEYS.MENU_ITEMS);
-    const items: MenuItem[] = data ? JSON.parse(data) : DEMO_MENU_ITEMS;
-    const index = items.findIndex(i => i.id === item.id);
-    if (index >= 0) {
-      items[index] = item;
-    } else {
-      items.push(item);
-    }
-    localStorage.setItem(STORAGE_KEYS.MENU_ITEMS, JSON.stringify(items));
-
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('menu_items').upsert({
-        id: item.id,
-        restaurant_id: item.restaurantId,
-        category_id: item.categoryId,
-        name: item.name,
-        description: item.description,
-        price: item.price,
-        image: item.image,
-        is_available: item.isAvailable
-      }).then(({ error }) => {
-        if (error) console.error('Supabase saveMenuItem error:', error);
-      });
-    }
+  async saveMenuItem(item: MenuItem): Promise<MenuItem> {
+    const result = await apiRequest<MenuItem>(
+      item.id ? `/api/menu-items/${encodeURIComponent(item.id)}` : '/api/menu-items',
+      item.id ? 'PUT' : 'POST',
+      item,
+    );
+    const items = readCache<MenuItem>(STORAGE_KEYS.MENU_ITEMS).filter(existing => existing.id !== result.id);
+    localStorage.setItem(STORAGE_KEYS.MENU_ITEMS, JSON.stringify([...items, result]));
+    return result;
   },
 
-  deleteMenuItem(itemId: string) {
-    const data = localStorage.getItem(STORAGE_KEYS.MENU_ITEMS);
-    let items: MenuItem[] = data ? JSON.parse(data) : DEMO_MENU_ITEMS;
-    items = items.filter(i => i.id !== itemId);
-    localStorage.setItem(STORAGE_KEYS.MENU_ITEMS, JSON.stringify(items));
-
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('menu_items').delete().eq('id', itemId).then(({ error }) => {
-        if (error) console.error('Supabase deleteMenuItem error:', error);
-      });
-    }
+  async deleteMenuItem(itemId: string): Promise<void> {
+    await apiRequest<void>(`/api/menu-items/${encodeURIComponent(itemId)}`, 'DELETE');
+    localStorage.setItem(
+      STORAGE_KEYS.MENU_ITEMS,
+      JSON.stringify(readCache<MenuItem>(STORAGE_KEYS.MENU_ITEMS).filter(item => item.id !== itemId)),
+    );
   },
 
   getOrders(restaurantId: string): Order[] {
-    this.init();
-    const data = localStorage.getItem(STORAGE_KEYS.ORDERS);
-    const orders: Order[] = data ? JSON.parse(data) : DEMO_ORDERS;
-    return orders.filter(o => o.restaurantId === restaurantId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return readCache<Order>(STORAGE_KEYS.ORDERS)
+      .filter(order => order.restaurantId === restaurantId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
-  saveOrder(order: Order) {
-    const data = localStorage.getItem(STORAGE_KEYS.ORDERS);
-    const orders: Order[] = data ? JSON.parse(data) : DEMO_ORDERS;
-    orders.unshift(order);
+  async saveOrder(order: Order): Promise<Order> {
+    const result = await apiRequest<Order>('/api/orders', 'POST', order);
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify([result, ...readCache<Order>(STORAGE_KEYS.ORDERS)]));
+    return result;
+  },
+
+  async updateOrderStatus(orderId: string, status: 'pending' | 'completed' | 'cancelled'): Promise<void> {
+    const result = await apiRequest<Order>(`/api/orders/${encodeURIComponent(orderId)}`, 'PATCH', { status });
+    const orders = readCache<Order>(STORAGE_KEYS.ORDERS).map(order => order.id === result.id ? result : order);
     localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
-
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('orders').insert({
-        id: order.id,
-        restaurant_id: order.restaurantId,
-        customer_name: order.customerName,
-        customer_phone: order.customerPhone,
-        delivery_preference: order.deliveryPreference,
-        delivery_address: order.deliveryAddress,
-        special_instructions: order.specialInstructions,
-        items: order.items,
-        total_amount: order.totalAmount,
-        status: order.status
-      }).then(({ error }) => {
-        if (error) console.error('Supabase saveOrder error:', error);
-      });
-    }
   },
 
-  updateOrderStatus(orderId: string, status: 'pending' | 'completed' | 'cancelled') {
-    const data = localStorage.getItem(STORAGE_KEYS.ORDERS);
-    const orders: Order[] = data ? JSON.parse(data) : DEMO_ORDERS;
-    const order = orders.find(o => o.id === orderId);
-    if (order) {
-      order.status = status;
-      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
-
-      if (isSupabaseConfigured && supabase) {
-        supabase.from('orders').update({ status }).eq('id', orderId).then(({ error }) => {
-          if (error) console.error('Supabase updateOrderStatus error:', error);
-        });
-      }
+  async getStorefront(slug: string): Promise<{
+    restaurant: Restaurant;
+    categories: Category[];
+    menuItems: MenuItem[];
+  }> {
+    if (slug === DEMO_RESTAURANT.slug) {
+      return {
+        restaurant: DEMO_RESTAURANT,
+        categories: DEMO_CATEGORIES,
+        menuItems: DEMO_MENU_ITEMS,
+      };
     }
+    return apiRequest(`/api/storefront/${encodeURIComponent(slug)}`);
   },
 
-  createRestaurantWithUser(user: User, restaurant: Restaurant) {
-    const users = JSON.parse(localStorage.getItem('menudrop_users') || '[]');
-    users.push(user);
-    localStorage.setItem('menudrop_users', JSON.stringify(users));
-    this.setCurrentUser(user);
-    this.saveRestaurant(restaurant);
-  }
+  async getDashboard(): Promise<{
+    restaurant: Restaurant;
+    categories: Category[];
+    menuItems: MenuItem[];
+    orders: Order[];
+  }> {
+    return apiRequest('/api/dashboard');
+  },
 };

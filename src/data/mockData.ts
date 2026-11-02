@@ -1,12 +1,16 @@
 import { Restaurant, Category, MenuItem, Order } from '../types';
+import amalaImage from '../assets/images/amala_soup_1793350581023.jpg';
+import chapmanImage from '../assets/images/chapman_drink_1793350583131.jpg';
+import jollofImage from '../assets/images/jollof_turkey_1793350581200.jpg';
+import ofadaImage from '../assets/images/ofada_stew_1793350581015.jpg';
 
 export const DEMO_RESTAURANT: Restaurant = {
   id: 'rest-pepper-house',
   userId: 'user-demo',
   name: 'The Pepper House',
   description: 'Authentic Nigerian home-style cooking, smoky party jollof, delicious soups and ice-cold drinks served fresh daily in Lagos.',
-  logo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&auto=format&fit=crop&q=80',
-  coverImage: '/src/assets/images/pepper_house_cover_1793350580371.jpg',
+  logo: '',
+  coverImage: jollofImage,
   whatsappNumber: '+2348012345678',
   address: '14 Admiralty Way, Lekki Phase 1, Lagos',
   openingHours: 'Mon - Sat: 9:00 AM - 10:00 PM',
@@ -33,7 +37,7 @@ export const DEMO_MENU_ITEMS: MenuItem[] = [
     name: 'Party Jollof Rice & Grilled Turkey',
     description: 'Smoky firewood flavor party jollof rice served with golden crispy grilled turkey, fried plantain, and fresh pepper sauce.',
     price: 4500,
-    image: '/src/assets/images/jollof_turkey_1793350581200.jpg',
+    image: jollofImage,
     isAvailable: true,
   },
   {
@@ -43,7 +47,7 @@ export const DEMO_MENU_ITEMS: MenuItem[] = [
     name: 'Ofada Rice & Designer Stew',
     description: 'Local unpolished Ofada rice served in a traditional leaf bowl with rich green pepper designer stew, assorted meat, and boiled egg.',
     price: 5200,
-    image: '/src/assets/images/ofada_stew_1793350581015.jpg',
+    image: ofadaImage,
     isAvailable: true,
   },
   {
@@ -53,7 +57,7 @@ export const DEMO_MENU_ITEMS: MenuItem[] = [
     name: 'Amala with Gbegiri, Ewedu & Assorted',
     description: 'Smooth dark yam flour Amala served with steaming yellow Gbegiri bean soup, green Ewedu soup, and tender assorted beef chunks.',
     price: 4800,
-    image: '/src/assets/images/amala_soup_1793350581023.jpg',
+    image: amalaImage,
     isAvailable: true,
   },
   {
@@ -73,7 +77,7 @@ export const DEMO_MENU_ITEMS: MenuItem[] = [
     name: 'Nigerian Chapman Cocktail',
     description: 'Refreshing signature cocktail mixed with Fanta, Sprite, Angostura bitters, grenadine, cucumber, and fresh citrus.',
     price: 2000,
-    image: '/src/assets/images/chapman_drink_1793350583131.jpg',
+    image: chapmanImage,
     isAvailable: true,
   },
   {

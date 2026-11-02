@@ -9,6 +9,7 @@ export const DashboardStorefront: React.FC = () => {
   const currentRestaurant = restaurants.find(r => r.id === currentUser?.restaurantId) || restaurants[0];
 
   const storefrontUrl = `${window.location.origin}/store/${currentRestaurant.slug}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&format=png&data=${encodeURIComponent(storefrontUrl)}`;
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -21,7 +22,7 @@ export const DashboardStorefront: React.FC = () => {
     <div className="space-y-8 max-w-4xl mx-auto">
       <div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Storefront & QR Code</h2>
-        <p className="text-sm text-stone-400">Share your digital menu link or print custom table QR codes.</p>
+        <p className="text-sm text-stone-400">Share your public menu link or download a QR code that opens it.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -33,7 +34,7 @@ export const DashboardStorefront: React.FC = () => {
             </div>
             <h3 className="text-lg font-bold text-white">Your Public Storefront URL</h3>
             <p className="text-sm text-stone-400">
-              Customers can visit this link on any mobile phone or computer to browse your menu and order.
+              Share this link so guests can browse your dishes, descriptions and prices. The public menu is view-only.
             </p>
             <div className="p-3 bg-stone-800 rounded-xl border border-stone-700 font-mono text-xs text-orange-400 truncate">
               {storefrontUrl}
@@ -66,23 +67,23 @@ export const DashboardStorefront: React.FC = () => {
           </div>
           <div>
             <h3 className="text-lg font-bold text-white mb-1">Table QR Code</h3>
-            <p className="text-sm text-stone-400">Scan to open digital menu instantly</p>
+            <p className="text-sm text-stone-400">Guests scan to browse your view-only menu.</p>
           </div>
 
           <div className="bg-white p-4 rounded-2xl shadow-lg border-4 border-stone-800">
             {/* Visual representation of QR code */}
-            <div className="w-48 h-48 bg-stone-900 rounded-xl flex flex-col items-center justify-center p-4 text-white text-center space-y-2">
-              <QrCode className="w-20 h-20 text-orange-500" />
-              <span className="text-xs font-bold tracking-tight truncate max-w-[150px]">{currentRestaurant.name}</span>
-            </div>
+            <img src={qrCodeUrl} alt={`QR code linking to ${currentRestaurant.name}'s menu`} className="h-48 w-48 rounded-xl object-contain" />
           </div>
 
-          <button
-            onClick={() => alert('QR Code downloaded successfully as high-res PNG!')}
+          <a
+            href={qrCodeUrl}
+            download={`${currentRestaurant.slug}-menu-qr.png`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full px-5 py-3 bg-stone-800 hover:bg-stone-700 text-white font-semibold rounded-xl transition-colors text-sm"
           >
-            Download QR Code (PNG)
-          </button>
+            Download menu QR code
+          </a>
         </div>
       </div>
     </div>

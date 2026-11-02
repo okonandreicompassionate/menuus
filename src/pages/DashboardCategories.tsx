@@ -12,6 +12,7 @@ export const DashboardCategories: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [name, setName] = useState('');
+  const [error, setError] = useState('');
 
   const handleOpenAdd = () => {
     setEditingCategory(null);
@@ -25,26 +26,36 @@ export const DashboardCategories: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    setError('');
 
     const newCat: Category = {
-      id: editingCategory ? editingCategory.id : 'cat-' + Date.now(),
+      id: editingCategory?.id || '',
       restaurantId: currentRestaurant.id,
       name: name.trim(),
       sortOrder: editingCategory ? editingCategory.sortOrder : categories.length + 1,
     };
 
-    StorageService.saveCategory(newCat);
-    setCategories(StorageService.getCategories(currentRestaurant.id));
-    setIsModalOpen(false);
+    try {
+      await StorageService.saveCategory(newCat);
+      setCategories(StorageService.getCategories(currentRestaurant.id));
+      setIsModalOpen(false);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not save this category.');
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
-      StorageService.deleteCategory(id);
-      setCategories(StorageService.getCategories(currentRestaurant.id));
+      setError('');
+      try {
+        await StorageService.deleteCategory(id);
+        setCategories(StorageService.getCategories(currentRestaurant.id));
+      } catch (deleteError) {
+        setError(deleteError instanceof Error ? deleteError.message : 'Could not delete this category.');
+      }
     }
   };
 
@@ -62,6 +73,8 @@ export const DashboardCategories: React.FC = () => {
           <Plus className="w-4 h-4" /> Add Category
         </button>
       </div>
+
+      {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
 
       <div className="bg-stone-900 rounded-3xl border border-stone-800 overflow-hidden">
         {categories.length === 0 ? (

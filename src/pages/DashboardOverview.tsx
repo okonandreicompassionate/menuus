@@ -1,156 +1,121 @@
 import React from 'react';
+import { ArrowUpRight, Check, Eye, FolderKanban, Menu as MenuIcon, QrCode, Store, UtensilsCrossed } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { UtensilsCrossed, ShoppingBag, Menu as MenuIcon, TrendingUp, ArrowUpRight, QrCode, Clock, CheckCircle } from 'lucide-react';
 import { StorageService } from '../services/storage';
 
 export const DashboardOverview: React.FC = () => {
   const currentUser = StorageService.getCurrentUser();
   const restaurants = StorageService.getRestaurants();
-  const currentRestaurant = restaurants.find(r => r.id === currentUser?.restaurantId) || restaurants[0];
-
+  const currentRestaurant = restaurants.find(restaurant => restaurant.id === currentUser?.restaurantId) || restaurants[0];
   const menuItems = StorageService.getMenuItems(currentRestaurant.id);
   const categories = StorageService.getCategories(currentRestaurant.id);
-  const orders = StorageService.getOrders(currentRestaurant.id);
-
-  const activeItemsCount = menuItems.filter(i => i.isAvailable).length;
-  const totalRevenue = orders.filter(o => o.status !== 'cancelled').reduce((acc, o) => acc + o.totalAmount, 0);
+  const availableItems = menuItems.filter(item => item.isAvailable).length;
+  const setupSteps = [
+    { label: 'Add a menu category', complete: categories.length > 0, to: '/dashboard/categories', icon: FolderKanban },
+    { label: 'Add your first dish', complete: menuItems.length > 0, to: '/dashboard/menu', icon: MenuIcon },
+    { label: 'Add restaurant details', complete: Boolean(currentRestaurant.address && currentRestaurant.openingHours), to: '/dashboard/settings', icon: Store },
+  ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-orange-600/20 via-stone-900 to-stone-900 p-8 rounded-3xl border border-stone-800">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-semibold">
-            <span>Plan: {currentRestaurant.plan}</span>
-            <span>·</span>
-            <span className="text-emerald-400">Store Active</span>
+    <div className="mx-auto max-w-7xl space-y-8">
+      <section className="dashboard-welcome overflow-hidden rounded-[1.75rem] border border-stone-800 p-7 sm:p-10">
+        <div className="flex flex-col justify-between gap-7 md:flex-row md:items-end">
+          <div className="max-w-2xl space-y-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-500">
+              {currentRestaurant.plan} plan · Restaurant menu
+            </p>
+            <h2 className="text-3xl font-semibold text-white sm:text-4xl">
+              Welcome, {currentUser?.name || 'Chef'}.
+            </h2>
+            <p className="text-sm leading-6 text-stone-400">
+              Keep {currentRestaurant.name}’s menu up to date, then share it with your guests.
+            </p>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Welcome back, {currentUser?.name || 'Chef'}!</h2>
-          <p className="text-sm text-stone-400">Here is what is happening at {currentRestaurant.name} today.</p>
-        </div>
-        <div className="flex items-center gap-3">
           <Link
             to={`/store/${currentRestaurant.slug}`}
             target="_blank"
-            className="flex items-center gap-2 px-5 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/30 text-sm"
+            className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-700 md:self-auto"
           >
-            <span>Preview Storefront</span>
-            <ArrowUpRight className="w-4 h-4" />
+            Preview public menu <ArrowUpRight className="h-4 w-4" />
           </Link>
         </div>
-      </div>
+      </section>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800 space-y-2">
-          <div className="flex items-center justify-between text-stone-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Total Menu Items</span>
-            <MenuIcon className="w-5 h-5 text-orange-500" />
-          </div>
-          <p className="text-3xl font-extrabold text-white">{menuItems.length}</p>
-          <p className="text-xs text-emerald-400 flex items-center gap-1">
-            <CheckCircle className="w-3.5 h-3.5" /> {activeItemsCount} items currently available
-          </p>
-        </div>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <OverviewStat label="Menu items" value={menuItems.length} detail="Dishes on your menu" icon={MenuIcon} />
+        <OverviewStat label="Categories" value={categories.length} detail="Menu sections" icon={FolderKanban} />
+        <OverviewStat label="Available" value={availableItems} detail="Ready to be viewed" icon={Check} />
+        <OverviewStat label="Restaurant status" value={currentRestaurant.isOpen ? 'Open' : 'Closed'} detail="Menu remains available to browse" icon={Eye} />
+      </section>
 
-        <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800 space-y-2">
-          <div className="flex items-center justify-between text-stone-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Categories</span>
-            <TrendingUp className="w-5 h-5 text-orange-500" />
-          </div>
-          <p className="text-3xl font-extrabold text-white">{categories.length}</p>
-          <p className="text-xs text-stone-400">Organized menu sections</p>
-        </div>
-
-        <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800 space-y-2">
-          <div className="flex items-center justify-between text-stone-400">
-            <span className="text-xs font-bold uppercase tracking-wider">WhatsApp Orders</span>
-            <ShoppingBag className="w-5 h-5 text-orange-500" />
-          </div>
-          <p className="text-3xl font-extrabold text-white">{orders.length}</p>
-          <p className="text-xs text-stone-400">Total orders received</p>
-        </div>
-
-        <div className="bg-stone-900 p-6 rounded-3xl border border-stone-800 space-y-2">
-          <div className="flex items-center justify-between text-stone-400">
-            <span className="text-xs font-bold uppercase tracking-wider">Est. Order Volume</span>
-            <span className="text-emerald-400 font-bold">₦</span>
-          </div>
-          <p className="text-3xl font-extrabold text-white">₦{totalRevenue.toLocaleString()}</p>
-          <p className="text-xs text-stone-400">From completed & pending orders</p>
-        </div>
-      </div>
-
-      {/* Recent Orders & Quick Links */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-stone-900 p-8 rounded-3xl border border-stone-800 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-white">Recent WhatsApp Orders</h3>
-            <Link to="/dashboard/orders" className="text-xs font-semibold text-orange-500 hover:text-orange-400">
-              View all
-            </Link>
-          </div>
-
-          {orders.length === 0 ? (
-            <div className="text-center py-12 text-stone-500">
-              <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p className="text-sm">No orders received yet. Share your storefront link!</p>
+      <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-[1.5rem] border border-stone-800 bg-stone-900 p-6 sm:p-8">
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">Getting started</p>
+              <h3 className="text-2xl font-semibold text-white">Set up your menu</h3>
+              <p className="mt-2 text-sm text-stone-400">A few details make your storefront ready to share.</p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {orders.slice(0, 4).map((order) => (
-                <div key={order.id} className="p-4 rounded-2xl bg-stone-800/50 border border-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-white">{order.customerName}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        order.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-stone-400">
-                      {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-extrabold text-white">₦{order.totalAmount.toLocaleString()}</p>
-                    <p className="text-xs text-stone-500">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Quick Actions Card */}
-        <div className="bg-stone-900 p-8 rounded-3xl border border-stone-800 space-y-6">
-          <h3 className="text-lg font-bold text-white">Quick Management</h3>
-          <div className="space-y-3">
-            <Link
-              to="/dashboard/menu"
-              className="flex items-center justify-between p-4 rounded-2xl bg-stone-800/60 hover:bg-stone-800 border border-stone-700/50 transition-all text-sm font-medium text-white"
-            >
-              <span>Add New Food Item</span>
-              <MenuIcon className="w-4 h-4 text-orange-500" />
-            </Link>
-            <Link
-              to="/dashboard/storefront"
-              className="flex items-center justify-between p-4 rounded-2xl bg-stone-800/60 hover:bg-stone-800 border border-stone-700/50 transition-all text-sm font-medium text-white"
-            >
-              <span>Download QR Code</span>
-              <QrCode className="w-4 h-4 text-orange-500" />
-            </Link>
-            <Link
-              to="/dashboard/settings"
-              className="flex items-center justify-between p-4 rounded-2xl bg-stone-800/60 hover:bg-stone-800 border border-stone-700/50 transition-all text-sm font-medium text-white"
-            >
-              <span>Update WhatsApp Number</span>
-              <Clock className="w-4 h-4 text-orange-500" />
-            </Link>
+            <UtensilsCrossed className="mt-1 h-5 w-5 shrink-0 text-orange-500" />
+          </div>
+          <div className="space-y-2">
+            {setupSteps.map(({ label, complete, to, icon: Icon }) => (
+              <Link
+                key={label}
+                to={to}
+                className="flex items-center gap-3 rounded-xl border border-stone-800/70 bg-stone-800/30 px-4 py-3 transition hover:bg-stone-800/60"
+              >
+                <span className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                  complete ? 'bg-emerald-500/10 text-emerald-600' : 'bg-stone-800 text-stone-500'
+                }`}>
+                  {complete ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                </span>
+                <span className={`flex-1 text-sm font-medium ${complete ? 'text-stone-400 line-through' : 'text-white'}`}>
+                  {label}
+                </span>
+                {complete && <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Done</span>}
+              </Link>
+            ))}
           </div>
         </div>
-      </div>
+
+        <div className="flex flex-col justify-between rounded-[1.5rem] border border-stone-800 bg-stone-900 p-6 sm:p-8">
+          <div>
+            <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-600/10 text-orange-500">
+              <QrCode className="h-5 w-5" />
+            </div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">Share your menu</p>
+            <h3 className="text-2xl font-semibold text-white">One link, ready anywhere.</h3>
+            <p className="mt-3 text-sm leading-6 text-stone-400">
+              Your public storefront is a view-only menu. Guests can browse your dishes, descriptions and prices.
+            </p>
+          </div>
+          <Link
+            to="/dashboard/storefront"
+            className="mt-7 inline-flex w-fit items-center gap-2 rounded-full border border-stone-700 px-4 py-2.5 text-xs font-semibold text-stone-300 transition hover:border-stone-600 hover:bg-stone-800/60"
+          >
+            Get your menu link and QR code <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </section>
     </div>
   );
 };
+
+function OverviewStat({ label, value, detail, icon: Icon }: {
+  label: string;
+  value: number | string;
+  detail: string;
+  icon: typeof MenuIcon;
+}) {
+  return (
+    <div className="rounded-[1.25rem] border border-stone-800 bg-stone-900 p-5">
+      <div className="mb-5 flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">{label}</span>
+        <Icon className="h-4 w-4 text-orange-500" />
+      </div>
+      <p className="text-3xl font-semibold tracking-tight text-white">{value}</p>
+      <p className="mt-1 text-xs text-stone-500">{detail}</p>
+    </div>
+  );
+}

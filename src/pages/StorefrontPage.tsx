@@ -1,521 +1,262 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import {
-  UtensilsCrossed,
-  Search,
-  ShoppingBag,
-  MapPin,
-  Clock,
-  Plus,
-  Minus,
-  X,
-  MessageSquare,
-  CheckCircle2,
-  ChevronRight,
-  ArrowLeft
-} from 'lucide-react';
-import confetti from 'canvas-confetti';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, Clock3, MapPin, Search, UtensilsCrossed } from 'lucide-react';
 import { StorageService } from '../services/storage';
-import { Restaurant, Category, MenuItem, CartItem, Order } from '../types';
+import { Category, MenuItem, Restaurant } from '../types';
 
 export const StorefrontPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const restaurant = StorageService.getRestaurantBySlug(slug || 'the-pepper-house') || StorageService.getRestaurants()[0];
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const categories: Category[] = StorageService.getCategories(restaurant.id);
-  const menuItems: MenuItem[] = StorageService.getMenuItems(restaurant.id);
-
-  const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
-
-  // Checkout form state
-  const [customerName, setCustomerName] = useState<string>('');
-  const [customerPhone, setCustomerPhone] = useState<string>('');
-  const [deliveryPreference, setDeliveryPreference] = useState<'delivery' | 'pickup'>('delivery');
-  const [deliveryAddress, setDeliveryAddress] = useState<string>('');
-  const [specialInstructions, setSpecialInstructions] = useState<string>('');
-  const [orderPlaced, setOrderPlaced] = useState<boolean>(false);
-
-  const filteredItems = menuItems.filter(item => {
-    const matchesCat = activeCategory === 'all' || item.categoryId === activeCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
-
-  const handleAddToCart = (item: MenuItem) => {
-    if (!item.isAvailable) return;
-    setCart(prev => {
-      const existing = prev.find(ci => ci.menuItem.id === item.id);
-      if (existing) {
-        return prev.map(ci => ci.menuItem.id === item.id ? { ...ci, quantity: ci.quantity + 1 } : ci);
-      }
-      return [...prev, { menuItem: item, quantity: 1 }];
-    });
-  };
-
-  const handleUpdateQuantity = (itemId: string, delta: number) => {
-    setCart(prev => {
-      return prev.map(ci => {
-        if (ci.menuItem.id === itemId) {
-          const newQty = ci.quantity + delta;
-          return newQty > 0 ? { ...ci, quantity: newQty } : null;
-        }
-        return ci;
-      }).filter(Boolean) as CartItem[];
-    });
-  };
-
-  const totalCartAmount = cart.reduce((sum, ci) => sum + (ci.menuItem.price * ci.quantity), 0);
-  const totalCartCount = cart.reduce((sum, ci) => sum + ci.quantity, 0);
-
-  const handleWhatsAppCheckout = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customerName.trim()) {
-      alert('Please enter your name for the order.');
-      return;
+  useEffect(() => {
+    let active = true;
+    if (!slug) {
+      setLoadError('Restaurant not found.');
+      setIsLoading(false);
+      return () => { active = false; };
     }
 
-    const orderItems = cart.map(ci => ({
-      menuItemId: ci.menuItem.id,
-      name: ci.menuItem.name,
-      price: ci.menuItem.price,
-      quantity: ci.quantity,
-    }));
-
-    const newOrder: Order = {
-      id: 'ord-' + Date.now(),
-      restaurantId: restaurant.id,
-      customerName,
-      customerPhone,
-      deliveryPreference,
-      deliveryAddress,
-      specialInstructions,
-      items: orderItems,
-      totalAmount: totalCartAmount,
-      createdAt: new Date().toISOString(),
-      status: 'pending',
-    };
-
-    StorageService.saveOrder(newOrder);
-
-    // Format WhatsApp message
-    let message = `🍽️ *NEW ORDER FROM MENUDROP*\n`;
-    message += `--------------------------------\n`;
-    message += `*Restaurant:* ${restaurant.name}\n`;
-    message += `*Customer Name:* ${customerName}\n`;
-    if (customerPhone) message += `*Phone:* ${customerPhone}\n`;
-    message += `*Fulfillment:* ${deliveryPreference.toUpperCase()}\n`;
-    if (deliveryPreference === 'delivery' && deliveryAddress) {
-      message += `*Delivery Address:* ${deliveryAddress}\n`;
-    }
-    if (specialInstructions) {
-      message += `*Notes:* ${specialInstructions}\n`;
-    }
-    message += `--------------------------------\n`;
-    message += `*ORDER ITEMS:*\n`;
-    cart.forEach(ci => {
-      message += `• ${ci.quantity}x ${ci.menuItem.name} - ₦${(ci.menuItem.price * ci.quantity).toLocaleString()}\n`;
-    });
-    message += `--------------------------------\n`;
-    message += `*TOTAL AMOUNT: ₦${totalCartAmount.toLocaleString()}*\n`;
-    message += `--------------------------------\n`;
-    message += `Please confirm my order. Thank you! 🙏`;
-
-    const encodedMessage = encodeURIComponent(message);
-    const cleanPhone = restaurant.whatsappNumber.replace(/[^0-9]/g, '');
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
-
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
+    StorageService.getStorefront(slug).then(data => {
+      if (!active) return;
+      setRestaurant(data.restaurant);
+      setCategories(data.categories);
+      setMenuItems(data.menuItems);
+      setIsLoading(false);
+    }).catch(error => {
+      if (!active) return;
+      setLoadError(error instanceof Error ? error.message : 'Unable to load this restaurant.');
+      setIsLoading(false);
     });
 
-    setOrderPlaced(true);
-    window.open(whatsappUrl, '_blank');
-  };
+    return () => { active = false; };
+  }, [slug]);
+
+  const filteredItems = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return menuItems.filter(item => {
+      const matchesCategory = activeCategory === 'all' || item.categoryId === activeCategory;
+      const matchesQuery = !query || item.name.toLowerCase().includes(query)
+        || item.description.toLowerCase().includes(query);
+      return matchesCategory && matchesQuery;
+    });
+  }, [activeCategory, menuItems, searchQuery]);
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-[#f7f5ef] flex items-center justify-center">
+        <p className="text-sm font-medium text-stone-500">Preparing the menu…</p>
+      </main>
+    );
+  }
+
+  if (!restaurant || loadError) {
+    return (
+      <main className="min-h-screen bg-[#f7f5ef] flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-white border border-stone-200 flex items-center justify-center text-stone-400">
+          <UtensilsCrossed className="w-6 h-6" />
+        </div>
+        <p className="text-stone-600">{loadError || 'Restaurant not found.'}</p>
+        <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-800 hover:text-emerald-700">
+          <ArrowLeft className="w-4 h-4" /> Back to MenuDrop
+        </Link>
+      </main>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#FAF9F5] text-stone-900 font-sans pb-24">
-      {/* Top Bar / Header */}
-      <div className="bg-stone-900 text-white py-3 px-6 text-xs text-center font-medium flex items-center justify-center gap-2">
-        <span>Powered by <Link to="/" className="underline text-orange-400 font-bold">MenuDrop</Link></span>
-        <span>·</span>
-        <span>Order directly on WhatsApp with zero commission</span>
-      </div>
-
-      {/* Hero / Cover */}
-      <div className="relative h-64 sm:h-80 w-full overflow-hidden bg-stone-900">
-        <img
-          src={restaurant.coverImage}
-          alt={restaurant.name}
-          className="w-full h-full object-cover opacity-75"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
-        <div className="absolute bottom-6 left-6 right-6 max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div className="flex items-end gap-4">
-            <img
-              src={restaurant.logo}
-              alt={restaurant.name}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-4 border-white shadow-2xl shrink-0 bg-white"
-              referrerPolicy="no-referrer"
-            />
-            <div className="text-white space-y-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{restaurant.name}</h1>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${
-                  restaurant.isOpen ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-                }`}>
-                  {restaurant.isOpen ? 'Open' : 'Closed'}
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-stone-300 max-w-xl line-clamp-2">{restaurant.description}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Info bar */}
-      <div className="bg-white border-b border-stone-200 px-6 py-4 shadow-sm">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-stone-600">
-          <div className="flex items-center gap-6">
-            <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-orange-600" /> {restaurant.address}</span>
-            <span className="hidden md:flex items-center gap-1.5"><Clock className="w-4 h-4 text-orange-600" /> {restaurant.openingHours}</span>
-          </div>
-          <a
-            href={`https://wa.me/${restaurant.whatsappNumber.replace(/[^0-9]/g, '')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-emerald-700 font-semibold bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-colors"
-          >
-            <MessageSquare className="w-4 h-4" /> Chat on WhatsApp
-          </a>
-        </div>
-      </div>
-
-      {/* Main Content & Menu */}
-      <div className="max-w-7xl mx-auto px-6 pt-8 space-y-8">
-        {/* Search & Category Filter */}
-        <div className="space-y-4">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3.5 top-3 w-4 h-4 text-stone-400" />
-            <input
-              type="text"
-              placeholder="Search dishes or drinks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-stone-300 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-600 shadow-sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-            <button
-              onClick={() => setActiveCategory('all')}
-              className={`px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
-                activeCategory === 'all'
-                  ? 'bg-orange-600 text-white shadow-orange-600/25'
-                  : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-50'
-              }`}
-            >
-              All Menu Items
-            </button>
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all shadow-sm ${
-                  activeCategory === cat.id
-                    ? 'bg-orange-600 text-white shadow-orange-600/25'
-                    : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-50'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Menu Items Grid */}
-        {filteredItems.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-stone-200 text-stone-500 shadow-sm">
-            <UtensilsCrossed className="w-12 h-12 mx-auto mb-3 opacity-40" />
-            <p className="text-base font-semibold">No food items found</p>
-            <p className="text-xs text-stone-400 mt-1">Try searching for something else.</p>
-          </div>
+    <main className="min-h-screen bg-[#f7f5ef] text-[#20251f]">
+      <header className="relative min-h-[410px] overflow-hidden bg-[#1e2922] sm:min-h-[500px]">
+        {restaurant.coverImage ? (
+          <img
+            src={restaurant.coverImage}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-55"
+            referrerPolicy="no-referrer"
+          />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredItems.map(item => {
-              const cartItem = cart.find(ci => ci.menuItem.id === item.id);
-              return (
-                <div key={item.id} className="bg-white rounded-3xl border border-stone-200 overflow-hidden flex flex-col justify-between group shadow-sm hover:shadow-xl transition-all">
-                  <div>
-                    <div className="relative h-48 overflow-hidden bg-stone-100">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        referrerPolicy="no-referrer"
-                      />
-                      {!item.isAvailable && (
-                        <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center">
-                          <span className="px-3 py-1 bg-stone-900 text-white text-xs font-bold rounded-full uppercase tracking-wider">
-                            Sold Out
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-6 space-y-2">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <h3 className="text-base font-bold text-stone-900">{item.name}</h3>
-                        <span className="text-base font-extrabold text-orange-600 shrink-0">
-                          ₦{item.price.toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed">{item.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="p-6 pt-0">
-                    {item.isAvailable ? (
-                      cartItem ? (
-                        <div className="flex items-center justify-between bg-orange-50 border border-orange-200 p-2 rounded-2xl">
-                          <button
-                            onClick={() => handleUpdateQuantity(item.id, -1)}
-                            className="p-2 bg-white rounded-xl text-orange-600 hover:bg-orange-100 shadow-sm transition-colors"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="font-bold text-stone-900 text-sm">{cartItem.quantity} in cart</span>
-                          <button
-                            onClick={() => handleUpdateQuantity(item.id, 1)}
-                            className="p-2 bg-orange-600 rounded-xl text-white hover:bg-orange-700 shadow-sm transition-colors"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleAddToCart(item)}
-                          className="w-full py-3 bg-stone-900 hover:bg-orange-600 text-white font-semibold rounded-2xl transition-all shadow-md text-xs flex items-center justify-center gap-2"
-                        >
-                          <Plus className="w-4 h-4" /> Add to Cart
-                        </button>
-                      )
-                    ) : (
-                      <button disabled className="w-full py-3 bg-stone-100 text-stone-400 font-semibold rounded-2xl cursor-not-allowed text-xs">
-                        Currently Unavailable
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_#5d6e52,_transparent_55%),linear-gradient(135deg,_#1e2922,_#373628)]" />
         )}
-      </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-[#171d18] via-[#171d18]/35 to-black/20" />
 
-      {/* Floating Cart Bar */}
-      {totalCartCount > 0 && (
-        <div className="fixed bottom-6 left-6 right-6 max-w-xl mx-auto z-40">
-          <div className="bg-stone-900 text-white p-4 rounded-3xl shadow-2xl flex items-center justify-between border border-stone-800">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-orange-600 flex items-center justify-center font-bold text-white shadow-md shadow-orange-600/30">
-                {totalCartCount}
+        <div className="relative mx-auto flex min-h-[410px] max-w-7xl flex-col px-5 pb-9 pt-6 sm:min-h-[500px] sm:px-8 sm:pb-12">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="inline-flex items-center gap-2 text-xs font-medium text-white/75 hover:text-white">
+              <ArrowLeft className="h-4 w-4" /> MenuDrop
+            </Link>
+            <span className="rounded-full border border-white/25 bg-black/20 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/90 backdrop-blur">
+              Restaurant menu
+            </span>
+          </div>
+
+          <div className="mt-auto flex flex-col gap-5 sm:flex-row sm:items-end">
+            {restaurant.logo ? (
+              <img
+                src={restaurant.logo}
+                alt={`${restaurant.name} logo`}
+                className="h-20 w-20 rounded-2xl border border-white/30 bg-white object-cover shadow-xl sm:h-24 sm:w-24"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white backdrop-blur sm:h-24 sm:w-24">
+                <UtensilsCrossed className="h-9 w-9" />
               </div>
-              <div>
-                <p className="text-xs text-stone-400">Total Amount</p>
-                <p className="text-base font-extrabold text-white">₦{totalCartAmount.toLocaleString()}</p>
-              </div>
+            )}
+            <div className="max-w-3xl text-white">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#d9c7a2]">
+                A menu by {restaurant.name}
+              </p>
+              <h1 className="font-serif text-4xl font-medium leading-tight tracking-tight sm:text-6xl">
+                {restaurant.name}
+              </h1>
+              {restaurant.description && (
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 sm:text-base">
+                  {restaurant.description}
+                </p>
+              )}
             </div>
-
-            <button
-              onClick={() => {
-                setOrderPlaced(false);
-                setIsCartOpen(true);
-              }}
-              className="flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-orange-600/30 text-sm"
-            >
-              <span>Review Order</span>
-              <ShoppingBag className="w-4 h-4" />
-            </button>
           </div>
         </div>
-      )}
+      </header>
 
-      {/* Cart & WhatsApp Checkout Drawer / Modal */}
-      {isCartOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl relative">
-            <div className="flex items-center justify-between pb-4 border-b border-stone-200">
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-orange-600" />
-                <h3 className="text-lg font-bold text-stone-900">Your Order Summary</h3>
-              </div>
-              <button
-                onClick={() => setIsCartOpen(false)}
-                className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {orderPlaced ? (
-              <div className="text-center py-12 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-                <h4 className="text-2xl font-bold text-stone-900">WhatsApp Chat Opened!</h4>
-                <p className="text-sm text-stone-600 max-w-xs mx-auto leading-relaxed">
-                  Your order has been formatted and sent to <span className="font-semibold text-stone-900">{restaurant.name}</span> on WhatsApp. Complete your chat to finalize payment and delivery.
-                </p>
-                <button
-                  onClick={() => {
-                    setCart([]);
-                    setIsCartOpen(false);
-                    setOrderPlaced(false);
-                  }}
-                  className="px-6 py-3 bg-stone-900 text-white font-semibold rounded-2xl hover:bg-stone-800 transition-colors text-sm"
-                >
-                  Close & Continue Browsing
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleWhatsAppCheckout} className="space-y-6">
-                {/* Itemized Cart */}
-                <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
-                  {cart.map(ci => (
-                    <div key={ci.menuItem.id} className="flex items-center justify-between gap-4 bg-stone-50 p-3 rounded-2xl border border-stone-200">
-                      <div>
-                        <h4 className="font-bold text-stone-900 text-sm">{ci.menuItem.name}</h4>
-                        <p className="text-xs text-stone-500">₦{ci.menuItem.price.toLocaleString()} each</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 bg-white border border-stone-300 px-2 py-1 rounded-xl">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(ci.menuItem.id, -1)}
-                            className="text-stone-600 hover:text-stone-900"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="text-xs font-bold text-stone-900">{ci.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(ci.menuItem.id, 1)}
-                            className="text-stone-600 hover:text-stone-900"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <span className="font-extrabold text-stone-900 text-sm">
-                          ₦{(ci.menuItem.price * ci.quantity).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Total */}
-                <div className="p-4 bg-stone-900 text-white rounded-2xl flex items-center justify-between">
-                  <span className="font-semibold text-sm">Total Amount</span>
-                  <span className="text-xl font-black text-orange-400">₦{totalCartAmount.toLocaleString()}</span>
-                </div>
-
-                {/* Customer Details Form */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">Your Name *</label>
-                    <input
-                      type="text"
-                      required
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Chidi Okafor"
-                      className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-orange-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="+2348012345678"
-                      className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-orange-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">Fulfillment Preference</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryPreference('delivery')}
-                        className={`py-2.5 rounded-xl text-xs font-bold transition-all border ${
-                          deliveryPreference === 'delivery'
-                            ? 'bg-orange-600 text-white border-orange-600 shadow-sm'
-                            : 'bg-stone-50 text-stone-700 border-stone-300'
-                        }`}
-                      >
-                        Delivery
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryPreference('pickup')}
-                        className={`py-2.5 rounded-xl text-xs font-bold transition-all border ${
-                          deliveryPreference === 'pickup'
-                            ? 'bg-orange-600 text-white border-orange-600 shadow-sm'
-                            : 'bg-stone-50 text-stone-700 border-stone-300'
-                        }`}
-                      >
-                        Pickup
-                      </button>
-                    </div>
-                  </div>
-
-                  {deliveryPreference === 'delivery' && (
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">Delivery Address *</label>
-                      <textarea
-                        rows={2}
-                        required
-                        value={deliveryAddress}
-                        onChange={(e) => setDeliveryAddress(e.target.value)}
-                        placeholder="Plot 12, Admiralty Way, Lekki Phase 1"
-                        className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-2 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-orange-600"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">Special Instructions (Optional)</label>
-                    <input
-                      type="text"
-                      value={specialInstructions}
-                      onChange={(e) => setSpecialInstructions(e.target.value)}
-                      placeholder="e.g. Extra pepper, less salt..."
-                      className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-orange-600"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 text-sm"
-                >
-                  <MessageSquare className="w-5 h-5" /> Order on WhatsApp (₦{totalCartAmount.toLocaleString()})
-                </button>
-              </form>
+      <section className="border-b border-[#e7e2d7] bg-white/80">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-4 text-xs text-stone-600 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {restaurant.address && (
+              <span className="inline-flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-[#61765a]" /> {restaurant.address}
+              </span>
+            )}
+            {restaurant.openingHours && (
+              <span className="inline-flex items-center gap-2">
+                <Clock3 className="h-4 w-4 text-[#61765a]" /> {restaurant.openingHours}
+              </span>
             )}
           </div>
+          <span className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+            restaurant.isOpen ? 'bg-[#eaf0e7] text-[#466043]' : 'bg-stone-100 text-stone-500'
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${restaurant.isOpen ? 'bg-[#6b8c5f]' : 'bg-stone-400'}`} />
+            {restaurant.isOpen ? 'Open today' : 'Currently closed'}
+          </span>
         </div>
-      )}
-    </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 pb-20 pt-12 sm:px-8 sm:pt-16">
+        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[#75856a]">Made with care</p>
+            <h2 className="font-serif text-3xl font-medium tracking-tight text-[#20251f] sm:text-4xl">Explore the menu</h2>
+            <p className="mt-2 text-sm text-stone-500">Browse the dishes, ingredients and prices from {restaurant.name}.</p>
+          </div>
+          <label className="relative block w-full md:max-w-xs">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={event => setSearchQuery(event.target.value)}
+              placeholder="Find a dish"
+              className="w-full rounded-full border border-[#e5e0d5] bg-white py-3 pl-11 pr-4 text-sm text-stone-800 outline-none transition focus:border-[#7b8b70] focus:ring-4 focus:ring-[#718369]/10"
+            />
+          </label>
+        </div>
+
+        <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
+          <button
+            type="button"
+            onClick={() => setActiveCategory('all')}
+            className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition ${
+              activeCategory === 'all'
+                ? 'bg-[#263a2d] text-white'
+                : 'border border-[#e5e0d5] bg-white text-stone-600 hover:border-[#9ca891]'
+            }`}
+          >
+            All dishes
+          </button>
+          {categories.map(category => (
+            <button
+              type="button"
+              key={category.id}
+              onClick={() => setActiveCategory(category.id)}
+              className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition ${
+                activeCategory === category.id
+                  ? 'bg-[#263a2d] text-white'
+                  : 'border border-[#e5e0d5] bg-white text-stone-600 hover:border-[#9ca891]'
+              }`}
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
+
+        {filteredItems.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-[#dcd7cb] bg-white/60 px-6 py-20 text-center">
+            <UtensilsCrossed className="mx-auto mb-4 h-8 w-8 text-[#83917a]" />
+            <h3 className="font-serif text-xl text-[#303a31]">
+              {menuItems.length === 0 ? 'The menu is being prepared' : 'No dishes found'}
+            </h3>
+            <p className="mt-2 text-sm text-stone-500">
+              {menuItems.length === 0 ? 'Please check back soon for the latest menu.' : 'Try a different search or category.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredItems.map(item => (
+              <MenuCard key={item.id} item={item} category={categories.find(category => category.id === item.categoryId)} currency={restaurant.currency} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <footer className="border-t border-[#e6e1d6] bg-[#f0eee7] px-5 py-8 text-center sm:px-8">
+        <p className="font-serif text-lg text-[#29372c]">{restaurant.name}</p>
+        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">Menu for browsing</p>
+      </footer>
+    </main>
   );
 };
+
+function MenuCard({ item, category, currency }: { item: MenuItem; category?: Category; currency: string }) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  return (
+    <article className={`overflow-hidden rounded-[1.4rem] border border-[#e9e4d9] bg-white shadow-[0_8px_24px_rgba(47,52,43,0.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(47,52,43,0.10)] ${!item.isAvailable ? 'opacity-75' : ''}`}>
+      <div className="relative aspect-[4/3] overflow-hidden bg-[#e8e7de]">
+        {item.image && !imageFailed ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+            className="h-full w-full object-cover transition duration-500 hover:scale-[1.03]"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-[radial-gradient(ellipse_at_top_right,_#d3d9c8,_transparent_60%),linear-gradient(135deg,_#e8e7de,_#f1eee5)] text-[#65735f]">
+            <UtensilsCrossed className="h-10 w-10 opacity-60" />
+          </div>
+        )}
+        <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-[0.16em] backdrop-blur ${
+          item.isAvailable ? 'bg-white/90 text-[#4c6546]' : 'bg-[#2d332d]/85 text-white'
+        }`}>
+          {item.isAvailable ? 'Available' : 'Sold out'}
+        </span>
+      </div>
+      <div className="p-5 sm:p-6">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div>
+            {category && <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] text-[#77846c]">{category.name}</p>}
+            <h3 className="font-serif text-xl font-medium leading-snug text-[#272e27]">{item.name}</h3>
+          </div>
+          <p className="shrink-0 text-sm font-semibold text-[#465841]">{currency}{item.price.toLocaleString()}</p>
+        </div>
+        {item.description && <p className="text-xs leading-5 text-stone-500">{item.description}</p>}
+      </div>
+    </article>
+  );
+}
