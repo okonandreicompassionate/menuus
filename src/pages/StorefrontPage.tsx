@@ -50,6 +50,7 @@ export const StorefrontPage: React.FC = () => {
       setMenuItems(data.menuItems);
       setWhatsappOrderingEnabled(data.whatsappOrderingEnabled);
       setIsLoading(false);
+      trackStorefrontVisit(slug);
     }).catch(error => {
       if (!active) return;
       setLoadError(error instanceof Error ? error.message : 'Unable to load this restaurant.');
@@ -618,4 +619,27 @@ function DineInOrderTicket({ orderNumber, token, code }: { orderNumber: string; 
       <p className="mt-2 max-w-xs text-xs leading-5 text-stone-600">Staff can scan the QR or type the 8-character code into Orders on their dashboard. Keep this page open until they’ve checked it.</p>
     </div>
   );
+}
+
+function trackStorefrontVisit(slug: string) {
+  const visitKey = `menu360:visit:${slug}`;
+  const visitorSessionKey = 'menu360:visitor-session';
+  try {
+    if (sessionStorage.getItem(visitKey)) return;
+    const visitorSessionId = sessionStorage.getItem(visitorSessionKey) || crypto.randomUUID();
+    sessionStorage.setItem(visitorSessionKey, visitorSessionId);
+    sessionStorage.setItem(visitKey, 'recording');
+    void StorageService.recordStorefrontVisit(slug, visitorSessionId).then(() => {
+      sessionStorage.setItem(visitKey, 'recorded');
+    }).catch(visitError => {
+      try {
+        sessionStorage.removeItem(visitKey);
+      } catch (storageError) {
+        console.error('Could not reset the storefront visit marker.', storageError);
+      }
+      console.error('Could not record this storefront visit.', visitError);
+    });
+  } catch (visitError) {
+    console.error('Could not prepare storefront visit tracking.', visitError);
+  }
 }

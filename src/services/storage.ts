@@ -1,4 +1,4 @@
-import { AdminRestaurant, PlatformSettings, Restaurant, Category, MenuItem, Order, OrderSubmission, OrderSubmissionResult, StaffOrderView, User } from '../types';
+import { AdminAnalytics, AdminRestaurant, PlatformSettings, Restaurant, Category, MenuItem, Order, OrderSubmission, OrderSubmissionResult, StaffOrderView, User } from '../types';
 import { apiUrl, readApiResponse } from './http';
 import { DEMO_CATEGORIES, DEMO_MENU_ITEMS, DEMO_RESTAURANT } from '../data/mockData';
 
@@ -217,7 +217,15 @@ export const StorageService = {
     return apiRequest('/api/admin/settings');
   },
 
+  async getAdminAnalytics(): Promise<AdminAnalytics> {
+    return apiRequest('/api/admin/analytics');
+  },
+
   async updateAdminPlatformSettings(settings: Partial<PlatformSettings>): Promise<PlatformSettings> {
     return apiRequest('/api/admin/settings', 'PATCH', settings);
+  },
+
+  async recordStorefrontVisit(slug: string, visitorSessionId: string): Promise<void> {
+    await apiRequest<void>(`/api/storefront/${encodeURIComponent(slug)}/visit`, 'POST', { visitorSessionId });
   },
 };

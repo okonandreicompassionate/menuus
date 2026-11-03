@@ -617,6 +617,14 @@ app.get('/api/admin/restaurants', asyncRoute(async (req, res) => {
   });
 }));
 
+app.get('/api/admin/analytics', asyncRoute(async (req, res) => {
+  const profile = await adminProfile(req, res);
+  if (!profile) return;
+  const { data, error } = await supabase.rpc('get_admin_analytics');
+  if (error) throw error;
+  res.json(data);
+}));
+
 app.patch('/api/admin/restaurants/:id/status', asyncRoute(async (req, res) => {
   const profile = await adminProfile(req, res);
   if (!profile) return;
@@ -737,6 +745,32 @@ app.get('/api/storefront/:slug', asyncRoute(async (req, res) => {
     menuItems: (menuResult.data || []).map(mapMenuItem),
     whatsappOrderingEnabled: (await getPlatformSettings()).whatsappOrderingEnabled,
   });
+}));
+
+app.post('/api/storefront/:slug/visit', asyncRoute(async (req, res) => {
+  const slug = normalizeText(req.params.slug, 64);
+  const visitorSessionId = typeof req.body?.visitorSessionId === 'string' ? req.body.visitorSessionId : '';
+  if (!slug || !isUuid(visitorSessionId)) {
+    res.status(400).json({ error: 'A valid menu and visitor session are required.' });
+    return;
+  }
+  if (await requireProfile(req)) {
+    res.status(204).end();
+    return;
+  }
+  const { data: restaurant, error: restaurantError } = await supabase.from('restaurants')
+    .select('id,status').eq('slug', slug).maybeSingle();
+  if (restaurantError) throw restaurantError;
+  if (!restaurant || restaurant.status === 'suspended') {
+    res.status(404).json({ error: 'Restaurant not found.' });
+    return;
+  }
+  const { error } = await supabase.from('storefront_visits').upsert({
+    restaurant_id: restaurant.id,
+    visitor_session_id: visitorSessionId,
+  }, { onConflict: 'restaurant_id,visitor_session_id', ignoreDuplicates: true });
+  if (error) throw error;
+  res.status(204).end();
 }));
 
 app.put('/api/restaurant', asyncRoute(async (req, res) => {

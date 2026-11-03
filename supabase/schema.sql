@@ -105,6 +105,106 @@ create index if not exists menu_items_restaurant_name_idx on public.menu_items (
 create index if not exists orders_restaurant_created_idx on public.orders (restaurant_id, created_at desc);
 create index if not exists auth_sessions_expiry_idx on public.auth_sessions (expires_at);
 
+create table if not exists public.storefront_visits (
+  id uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references public.restaurants(id) on delete cascade,
+  visitor_session_id uuid not null,
+  viewed_at timestamptz not null default now(),
+  unique (restaurant_id, visitor_session_id)
+);
+
+create index if not exists storefront_visits_viewed_idx on public.storefront_visits (viewed_at desc);
+create index if not exists storefront_visits_restaurant_viewed_idx on public.storefront_visits (restaurant_id, viewed_at desc);
+
+alter table public.storefront_visits enable row level security;
+revoke all on public.storefront_visits from anon, authenticated;
+grant all on public.storefront_visits to service_role;
+
+create or replace function public.get_admin_analytics()
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  with days as (
+    select generate_series(current_date - 29, current_date, interval '1 day')::date as day
+  ),
+  daily_visits as (
+    select viewed_at::date as day, count(*)::integer as total
+    from public.storefront_visits
+    where viewed_at >= current_date - interval '29 days'
+    group by viewed_at::date
+  ),
+  daily_signups as (
+    select created_at::date as day, count(*)::integer as total
+    from public.app_users
+    where created_at >= current_date - interval '29 days'
+    group by created_at::date
+  ),
+  daily_orders as (
+    select created_at::date as day, count(*)::integer as total
+    from public.orders
+    where created_at >= current_date - interval '29 days'
+    group by created_at::date
+  ),
+  visits_by_restaurant as (
+    select restaurant_id, count(*)::integer as total
+    from public.storefront_visits
+    where viewed_at >= current_date - interval '29 days'
+    group by restaurant_id
+  ),
+  orders_by_restaurant as (
+    select restaurant_id, count(*)::integer as total
+    from public.orders
+    where created_at >= current_date - interval '29 days'
+    group by restaurant_id
+  )
+  select jsonb_build_object(
+    'totalVisits', (select count(*) from public.storefront_visits),
+    'visitsLast30Days', (select count(*) from public.storefront_visits where viewed_at >= current_date - interval '29 days'),
+    'totalOrders', (select count(*) from public.orders),
+    'ordersLast30Days', (select count(*) from public.orders where created_at >= current_date - interval '29 days'),
+    'pendingOrders', (select count(*) from public.orders where status = 'pending'),
+    'signupsLast30Days', (select count(*) from public.app_users where created_at >= current_date - interval '29 days'),
+    'daily', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'date', to_char(days.day, 'YYYY-MM-DD'),
+        'visits', coalesce(daily_visits.total, 0),
+        'signups', coalesce(daily_signups.total, 0),
+        'orders', coalesce(daily_orders.total, 0)
+      ) order by days.day), '[]'::jsonb)
+      from days
+      left join daily_visits using (day)
+      left join daily_signups using (day)
+      left join daily_orders using (day)
+    ),
+    'topRestaurants', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'id', ranked.id,
+        'name', ranked.name,
+        'slug', ranked.slug,
+        'visits', ranked.visits,
+        'orders', ranked.orders
+      ) order by ranked.visits desc, ranked.orders desc, ranked.name), '[]'::jsonb)
+      from (
+        select restaurants.id, restaurants.name, restaurants.slug,
+          coalesce(visits_by_restaurant.total, 0) as visits,
+          coalesce(orders_by_restaurant.total, 0) as orders
+        from public.restaurants
+        left join visits_by_restaurant on visits_by_restaurant.restaurant_id = restaurants.id
+        left join orders_by_restaurant on orders_by_restaurant.restaurant_id = restaurants.id
+        where restaurants.status = 'active'
+          and (coalesce(visits_by_restaurant.total, 0) > 0 or coalesce(orders_by_restaurant.total, 0) > 0)
+        order by visits desc, orders desc, restaurants.name
+        limit 5
+      ) as ranked
+    )
+  );
+$$;
+
+revoke all on function public.get_admin_analytics() from public, anon, authenticated;
+grant execute on function public.get_admin_analytics() to service_role;
+
 alter table public.app_users enable row level security;
 alter table public.restaurants enable row level security;
 alter table public.auth_sessions enable row level security;

@@ -41,6 +41,17 @@ export interface PlatformSettings {
   paidPlansVisible: boolean;
 }
 
+export interface AdminAnalytics {
+  totalVisits: number;
+  visitsLast30Days: number;
+  totalOrders: number;
+  ordersLast30Days: number;
+  pendingOrders: number;
+  signupsLast30Days: number;
+  daily: Array<{ date: string; visits: number; signups: number; orders: number }>;
+  topRestaurants: Array<{ id: string; name: string; slug: string; visits: number; orders: number }>;
+}
+
 export interface Category {
   id: string;
   restaurantId: string;

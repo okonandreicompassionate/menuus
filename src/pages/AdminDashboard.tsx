@@ -1,33 +1,46 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowUpRight, Building2, ShieldCheck, Users } from 'lucide-react';
+import { ArrowUpRight, Building2, Eye, ShoppingBag, ShieldCheck, Users, UserPlus, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StorageService } from '../services/storage';
-import { AdminRestaurant, PlatformSettings } from '../types';
+import { AdminAnalytics, AdminRestaurant, PlatformSettings } from '../types';
 import { Menu360AdireBand, Menu360Logo } from '../components/Menu360Brand';
 
 export const AdminDashboard: React.FC = () => {
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalRestaurants, setTotalRestaurants] = useState(0);
   const [activeRestaurants, setActiveRestaurants] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [analyticsError, setAnalyticsError] = useState('');
   const [updatingId, setUpdatingId] = useState('');
 
   const loadRestaurants = async () => {
     setError('');
+    setAnalyticsError('');
     try {
       const result = await StorageService.getAdminRestaurants();
       setRestaurants(result.restaurants);
       setTotalUsers(result.totalUsers);
       setTotalRestaurants(result.totalRestaurants);
       setActiveRestaurants(result.activeRestaurants);
-      try {
-        setPlatformSettings(await StorageService.getAdminPlatformSettings());
-      } catch (settingsError) {
+      const [settingsResult, analyticsResult] = await Promise.allSettled([
+        StorageService.getAdminPlatformSettings(),
+        StorageService.getAdminAnalytics(),
+      ]);
+      if (settingsResult.status === 'fulfilled') setPlatformSettings(settingsResult.value);
+      else {
         setPlatformSettings(null);
-        setError(settingsError instanceof Error ? settingsError.message : 'Could not load platform controls.');
+        setError(settingsResult.reason instanceof Error ? settingsResult.reason.message : 'Could not load platform controls.');
+      }
+      if (analyticsResult.status === 'fulfilled') setAnalytics(analyticsResult.value);
+      else {
+        setAnalytics(null);
+        setAnalyticsError(analyticsResult.reason instanceof Error
+          ? analyticsResult.reason.message
+          : 'Could not load platform analytics.');
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load the admin dashboard.');
@@ -96,6 +109,71 @@ export const AdminDashboard: React.FC = () => {
           <AdminStat label="Accounts" value={totalUsers} icon={Users} />
           <AdminStat label="Restaurants" value={totalRestaurants} icon={Building2} />
           <AdminStat label="Active storefronts" value={activeRestaurants} icon={ShieldCheck} />
+        </section>
+
+        <section className="space-y-5 rounded-[1.5rem] border border-stone-800 bg-stone-900 p-5 sm:p-7">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500">Growth &amp; engagement</p>
+            <h2 className="mt-1 text-xl font-semibold text-white">Platform analytics</h2>
+            <p className="mt-1 text-xs leading-5 text-stone-500">Rolling 30-day performance. Visits count once per restaurant in a browser tab session; no IP addresses are stored.</p>
+          </div>
+          {analytics ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <AdminStat label="Menu visits · 30 days" value={analytics.visitsLast30Days} icon={Eye} />
+                <AdminStat label="Order requests · 30 days" value={analytics.ordersLast30Days} icon={ShoppingBag} />
+                <AdminStat label="New accounts · 30 days" value={analytics.signupsLast30Days} icon={UserPlus} />
+                <AdminStat label="Pending orders" value={analytics.pendingOrders} icon={ShoppingBag} />
+              </div>
+              <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+                <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-1">
+                  <AdminTrend title="Menu visits" values={analytics.daily.map(day => day.visits)} color="bg-emerald-500" />
+                  <AdminTrend title="New accounts" values={analytics.daily.map(day => day.signups)} color="bg-orange-500" />
+                  <AdminTrend title="Order requests" values={analytics.daily.map(day => day.orders)} color="bg-sky-500" />
+                </div>
+                <section className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-white">Top storefronts</h3>
+                      <p className="mt-1 text-xs text-stone-500">Ranked by visits in the last 30 days</p>
+                    </div>
+                    <span className="text-xs text-stone-500">All-time visits: {analytics.totalVisits.toLocaleString()}</span>
+                  </div>
+                  {analytics.topRestaurants.length ? (
+                    <ol className="mt-4 divide-y divide-stone-800">
+                      {analytics.topRestaurants.map((item, index) => (
+                        <li key={item.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-stone-800 text-xs font-bold text-orange-400">{index + 1}</span>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-stone-100">{item.name}</p>
+                              <p className="truncate text-xs text-stone-500">/{item.slug}</p>
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-semibold text-white">{item.visits.toLocaleString()} visits</p>
+                            <p className="text-xs text-stone-500">{item.orders.toLocaleString()} orders</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="mt-5 text-sm text-stone-500">No active storefront activity yet. Visits will appear after the database update is installed.</p>
+                  )}
+                  <p className="mt-4 border-t border-stone-800 pt-3 text-xs text-stone-500">
+                    {analytics.totalOrders.toLocaleString()} order requests total · Counts show requests, not confirmed sales.
+                  </p>
+                </section>
+              </div>
+            </>
+          ) : isLoading ? (
+            <p className="text-sm text-stone-500">Loading platform analytics…</p>
+          ) : (
+            <p role="status" className="rounded-xl border border-amber-900/70 bg-amber-950/30 p-4 text-sm leading-6 text-amber-200">
+              Analytics are unavailable. Apply the latest <code className="rounded bg-black/30 px-1.5 py-0.5">supabase/schema.sql</code> to create the visit tracking table and reporting function.
+              {analyticsError && <span className="mt-1 block text-xs text-amber-300/80">{analyticsError}</span>}
+            </p>
+          )}
         </section>
         <Menu360AdireBand />
 
@@ -237,7 +315,7 @@ function AdminSettingToggle({ label, description, checked, disabled, onChange }:
 function AdminStat({ label, value, icon: Icon }: {
   label: string;
   value: number;
-  icon: typeof Users;
+  icon: LucideIcon;
 }) {
   return (
     <div className="rounded-[1.25rem] border border-stone-800 bg-stone-900 p-5">
@@ -246,6 +324,37 @@ function AdminStat({ label, value, icon: Icon }: {
         <Icon className="h-4 w-4 text-orange-500" />
       </div>
       <p className="text-3xl font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function AdminTrend({ title, values, color }: { title: string; values: number[]; color: string }) {
+  const max = Math.max(...values, 1);
+  const firstDate = new Date();
+  firstDate.setDate(firstDate.getDate() - Math.max(values.length - 1, 0));
+  const lastDate = new Date();
+
+  return (
+    <div className="rounded-2xl border border-stone-800 bg-stone-950/60 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        <span className="text-xs text-stone-400">{values.reduce((sum, value) => sum + value, 0).toLocaleString()} total</span>
+      </div>
+      <div className="mt-4 flex h-24 items-end gap-[2px]" role="img" aria-label={`${title} daily trend over the last 30 days`}>
+        {values.map((value, index) => (
+          <span
+            key={index}
+            title={`${value} on day ${index + 1}`}
+            className={`min-w-0 flex-1 rounded-t-sm ${color} ${value ? 'opacity-80' : 'opacity-20'}`}
+            style={{ height: `${Math.max((value / max) * 100, 3)}%` }}
+          />
+        ))}
+      </div>
+      <div className="mt-2 flex justify-between text-[10px] text-stone-500">
+        <span>{firstDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+        <span>Daily · each chart uses its own scale</span>
+        <span>{lastDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+      </div>
     </div>
   );
 }
