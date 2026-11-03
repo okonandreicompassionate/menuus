@@ -298,6 +298,14 @@ body {
   }
 }
 
+.qr-adire-band {
+  background-color: #008751;
+  background-image:
+    radial-gradient(circle at center, #f2a31b 0 16%, transparent 17% 36%, #fbf6ea 37% 43%, transparent 44%),
+    linear-gradient(45deg, transparent 47%, #fbf6ea 48% 52%, transparent 53%);
+  background-size: 40px 40px;
+}
+
 @media print {
   @page {
     margin: 0.5in;
