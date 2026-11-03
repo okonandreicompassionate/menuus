@@ -35,6 +35,12 @@ export interface AdminRestaurant {
   owner: { id: string; name: string; email: string };
 }
 
+export interface PlatformSettings {
+  signupsEnabled: boolean;
+  whatsappOrderingEnabled: boolean;
+  paidPlansVisible: boolean;
+}
+
 export interface Category {
   id: string;
   restaurantId: string;

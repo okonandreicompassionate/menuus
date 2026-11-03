@@ -77,6 +77,10 @@ app.get(['/api/health', '/health'], (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+app.get('/api/app-config', asyncRoute(async (_req, res) => {
+  res.json(await getPlatformSettings());
+}));
+
 type AppUser = {
   id: string;
   email: string;
@@ -102,6 +106,34 @@ type RestaurantRow = {
   status: 'active' | 'suspended';
   created_at: string;
 };
+
+type PlatformSettings = {
+  signupsEnabled: boolean;
+  whatsappOrderingEnabled: boolean;
+  paidPlansVisible: boolean;
+};
+
+const platformSettingsId = 'platform';
+
+async function getPlatformSettings(): Promise<PlatformSettings> {
+  const { data, error } = await supabase.from('app_settings').select('settings')
+    .eq('id', platformSettingsId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('Platform settings are missing. Run the latest Supabase schema before using app settings.');
+  const settings: unknown = data.settings;
+  if (!settings || typeof settings !== 'object') throw new Error('Platform settings have an invalid format.');
+  const values = settings as Record<string, unknown>;
+  if (typeof values.signupsEnabled !== 'boolean'
+    || typeof values.whatsappOrderingEnabled !== 'boolean'
+    || typeof values.paidPlansVisible !== 'boolean') {
+    throw new Error('Platform settings are incomplete. Run the latest Supabase schema before using app settings.');
+  }
+  return {
+    signupsEnabled: values.signupsEnabled,
+    whatsappOrderingEnabled: values.whatsappOrderingEnabled,
+    paidPlansVisible: values.paidPlansVisible,
+  };
+}
 
 type AccountProfile = {
   user: AppUser;
@@ -322,6 +354,11 @@ function decodeImageData(value: unknown): { bytes: Buffer; mimeType: string; ext
 }
 
 app.post('/api/auth/signup', asyncRoute(async (req, res) => {
+  const settings = await getPlatformSettings();
+  if (!settings.signupsEnabled) {
+    res.status(403).json({ error: 'New restaurant sign-ups are temporarily paused. Please check back soon.' });
+    return;
+  }
   const name = normalizeText(req.body?.name, 100);
   const restaurantName = normalizeText(req.body?.restaurantName, 100);
   const whatsappNumber = normalizeText(req.body?.whatsappNumber, 32);
@@ -587,6 +624,59 @@ app.patch('/api/admin/restaurants/:id/status', asyncRoute(async (req, res) => {
   res.json({ id: data.id, status: data.status });
 }));
 
+app.get('/api/admin/settings', asyncRoute(async (req, res) => {
+  const profile = await adminProfile(req, res);
+  if (!profile) return;
+  res.json(await getPlatformSettings());
+}));
+
+app.patch('/api/admin/settings', asyncRoute(async (req, res) => {
+  const profile = await adminProfile(req, res);
+  if (!profile) return;
+  const submitted: unknown = req.body;
+  const allowedKeys: Array<keyof PlatformSettings> = [
+    'signupsEnabled',
+    'whatsappOrderingEnabled',
+    'paidPlansVisible',
+  ];
+  if (!submitted || typeof submitted !== 'object' || Array.isArray(submitted)) {
+    res.status(400).json({ error: 'Choose one or more valid platform settings.' });
+    return;
+  }
+  const updates = submitted as Record<string, unknown>;
+  const keys = Object.keys(updates);
+  if (keys.length === 0 || keys.some(key => !allowedKeys.includes(key as keyof PlatformSettings))
+    || Object.values(updates).some(value => typeof value !== 'boolean')) {
+    res.status(400).json({ error: 'Choose one or more valid platform settings.' });
+    return;
+  }
+  const current = await getPlatformSettings();
+  const settings: PlatformSettings = {
+    signupsEnabled: typeof updates.signupsEnabled === 'boolean' ? updates.signupsEnabled : current.signupsEnabled,
+    whatsappOrderingEnabled: typeof updates.whatsappOrderingEnabled === 'boolean' ? updates.whatsappOrderingEnabled : current.whatsappOrderingEnabled,
+    paidPlansVisible: typeof updates.paidPlansVisible === 'boolean' ? updates.paidPlansVisible : current.paidPlansVisible,
+  };
+  const { data, error } = await supabase.from('app_settings')
+    .update({ settings, updated_at: new Date().toISOString() })
+    .eq('id', platformSettingsId)
+    .select('settings')
+    .single();
+  if (error) throw error;
+  const returned: unknown = data.settings;
+  if (!returned || typeof returned !== 'object') throw new Error('Updated platform settings could not be read.');
+  const values = returned as Record<string, unknown>;
+  if (typeof values.signupsEnabled !== 'boolean'
+    || typeof values.whatsappOrderingEnabled !== 'boolean'
+    || typeof values.paidPlansVisible !== 'boolean') {
+    throw new Error('Updated platform settings are incomplete.');
+  }
+  res.json({
+    signupsEnabled: values.signupsEnabled,
+    whatsappOrderingEnabled: values.whatsappOrderingEnabled,
+    paidPlansVisible: values.paidPlansVisible,
+  });
+}));
+
 app.post('/api/images', asyncRoute(async (req, res) => {
   const profile = await authenticatedProfile(req, res);
   if (!profile) return;
@@ -634,6 +724,7 @@ app.get('/api/storefront/:slug', asyncRoute(async (req, res) => {
     restaurant: mapRestaurant(restaurant as RestaurantRow),
     categories: (categoriesResult.data || []).map(mapCategory),
     menuItems: (menuResult.data || []).map(mapMenuItem),
+    whatsappOrderingEnabled: (await getPlatformSettings()).whatsappOrderingEnabled,
   });
 }));
 

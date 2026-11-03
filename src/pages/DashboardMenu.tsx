@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Edit2, Trash2, Check, X, Search, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X, Search, CircleSlash } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { MenuItem, Category } from '../types';
 import { ImageUploadField } from '../components/ImageUploadField';
+import { Menu360AdireBand, Menu360FoodIcon } from '../components/Menu360Brand';
 
 export const DashboardMenu: React.FC = () => {
   const currentUser = StorageService.getCurrentUser();
@@ -14,6 +15,9 @@ export const DashboardMenu: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>(StorageService.getMenuItems(currentRestaurant.id));
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'sold-out'>('all');
+  const [updatingItemId, setUpdatingItemId] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -85,15 +89,40 @@ export const DashboardMenu: React.FC = () => {
     }
   };
 
+  const handleToggleAvailability = async (item: MenuItem) => {
+    setUpdatingItemId(item.id);
+    setError('');
+    setStatusMessage('');
+    try {
+      await StorageService.saveMenuItem({ ...item, isAvailable: !item.isAvailable });
+      setMenuItems(StorageService.getMenuItems(currentRestaurant.id));
+      setStatusMessage(`${item.name} is now ${item.isAvailable ? 'marked sold out' : 'available'} on your public menu.`);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : `Could not update ${item.name}.`);
+    } finally {
+      setUpdatingItemId('');
+    }
+  };
+
   const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const categoryName = categories.find(category => category.id === item.categoryId)?.name || '';
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const matchesSearch = !normalizedQuery
+      || item.name.toLowerCase().includes(normalizedQuery)
+      || item.description.toLowerCase().includes(normalizedQuery)
+      || categoryName.toLowerCase().includes(normalizedQuery);
     const matchesCategory = selectedCategory === 'all' || item.categoryId === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesAvailability = availabilityFilter === 'all'
+      || (availabilityFilter === 'available' && item.isAvailable)
+      || (availabilityFilter === 'sold-out' && !item.isAvailable);
+    return matchesSearch && matchesCategory && matchesAvailability;
   });
+  const availableCount = menuItems.filter(item => item.isAvailable).length;
+  const soldOutCount = menuItems.length - availableCount;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      <Menu360AdireBand />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Menu Management</h2>
@@ -110,49 +139,68 @@ export const DashboardMenu: React.FC = () => {
       </div>
 
       {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
+      {statusMessage && <p role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700">{statusMessage}</p>}
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-stone-900 p-4 rounded-2xl border border-stone-800">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-3 w-4 h-4 text-stone-400" />
-          <input
-            type="text"
-            placeholder="Search menu items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-stone-800 border border-stone-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-600"
-          />
+      <div className="menu360-filter-panel space-y-4 rounded-2xl border border-stone-800 bg-stone-900 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3.5 top-3 w-4 h-4 text-stone-400" />
+            <input
+              type="text"
+              aria-label="Search dishes"
+              placeholder="Search dishes, descriptions or categories..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="min-h-12 w-full rounded-xl border border-stone-700 bg-stone-800 py-3 pl-10 pr-4 text-sm text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-600"
+            />
+          </div>
+          <p className="shrink-0 text-xs font-semibold text-stone-500">{filteredItems.length} of {menuItems.length} dishes</p>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
-          <button
-            onClick={() => setSelectedCategory('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
-              selectedCategory === 'all' ? 'bg-orange-600 text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
-            }`}
-          >
-            All Categories
-          </button>
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
-                selectedCategory === cat.id ? 'bg-orange-600 text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
-              }`}
-            >
-              {cat.name}
-            </button>
-          ))}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {[{ id: 'all', label: `All dishes · ${menuItems.length}` }, ...categories.map(category => ({
+              id: category.id,
+              label: category.name,
+            }))].map(category => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => setSelectedCategory(category.id)}
+                aria-pressed={selectedCategory === category.id}
+                className={`menu360-chip shrink-0 ${selectedCategory === category.id ? 'menu360-chip-active' : ''}`}
+              >
+                {category.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {([
+              { id: 'all', label: `All · ${menuItems.length}` },
+              { id: 'available', label: `Available · ${availableCount}` },
+              { id: 'sold-out', label: `Sold out · ${soldOutCount}` },
+            ] as const).map(filter => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setAvailabilityFilter(filter.id)}
+                aria-pressed={availabilityFilter === filter.id}
+                className={`menu360-chip menu360-status-chip ${availabilityFilter === filter.id ? 'menu360-chip-active' : ''}`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Menu Items Grid */}
       {categories.length === 0 ? (
         <div className="text-center py-20 bg-stone-900 rounded-3xl border border-stone-800 text-stone-400">
-          <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p className="text-base font-semibold">Create a category to start your menu</p>
-          <p className="text-xs text-stone-500 mt-1">Categories help customers browse your dishes.</p>
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#F2A31B]"><Menu360FoodIcon kind="menu" size={40} /></div>
+          <p className="text-base font-semibold">Start with a menu section</p>
+          <p className="mt-1 text-sm text-stone-500">Create a category, then add your dishes and prices.</p>
           <Link
             to="/dashboard/categories"
             className="inline-flex mt-5 px-5 py-3 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700"
@@ -162,29 +210,42 @@ export const DashboardMenu: React.FC = () => {
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-20 bg-stone-900 rounded-3xl border border-stone-800 text-stone-400">
-          <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p className="text-base font-semibold">No menu items found</p>
-          <p className="text-xs text-stone-500 mt-1">Try adjusting your search or add a new item.</p>
+          <Menu360FoodIcon kind="plantain" size={48} />
+          <p className="mt-3 text-base font-semibold">{menuItems.length === 0 ? 'Your menu starts here' : 'No dishes match those filters'}</p>
+          <p className="mt-1 text-sm text-stone-500">{menuItems.length === 0 ? 'Add your first dish with a name, photo and price.' : 'Try another search or clear the selected filters.'}</p>
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setAvailabilityFilter('all'); }}
+            className="mt-5 rounded-full border border-stone-800 px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100"
+          >
+            Clear filters
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map(item => {
             const category = categories.find(c => c.id === item.categoryId);
             return (
-              <div key={item.id} className="bg-stone-900 rounded-3xl border border-stone-800 overflow-hidden flex flex-col justify-between group hover:border-stone-700 transition-all">
+              <div key={item.id} className={`menu360-item-card flex flex-col justify-between overflow-hidden rounded-3xl border bg-stone-900 transition-all ${item.isAvailable ? 'border-stone-800' : 'menu360-item-sold-out border-stone-800'}`}>
                 <div>
                   <div className="relative h-48 overflow-hidden bg-stone-800">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      referrerPolicy="no-referrer"
-                    />
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="h-full w-full object-cover transition-transform duration-500"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-[#FBF6EA]">
+                        <Menu360FoodIcon kind={category?.name.toLowerCase().includes('drink') ? 'zobo' : 'jollof'} size={64} />
+                      </div>
+                    )}
                     <div className="absolute top-3 right-3 flex items-center gap-2">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        item.isAvailable ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
+                      <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                        item.isAvailable ? 'menu360-available-badge' : 'menu360-soldout-badge'
                       }`}>
-                        {item.isAvailable ? 'Available' : 'Sold Out'}
+                        {item.isAvailable ? 'Available' : 'Sold out'}
                       </span>
                     </div>
                   </div>
@@ -203,19 +264,37 @@ export const DashboardMenu: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-6 pt-0 flex items-center justify-end gap-2 border-t border-stone-800/60 mt-4">
+                <div className="menu360-item-actions mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-stone-800/60 p-5 pt-4">
                   <button
+                    type="button"
+                    disabled={updatingItemId === item.id}
+                    onClick={() => void handleToggleAvailability(item)}
+                    aria-label={item.isAvailable ? `Mark ${item.name} sold out` : `Mark ${item.name} available`}
+                    className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold transition disabled:cursor-wait disabled:opacity-60 ${
+                      item.isAvailable ? 'menu360-soldout-action' : 'menu360-available-action'
+                    }`}
+                  >
+                    {item.isAvailable ? <CircleSlash className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                    {updatingItemId === item.id ? 'Saving…' : item.isAvailable ? 'Mark sold out' : 'Mark available'}
+                  </button>
+                  <div className="flex items-center gap-2">
+                  <button
+                    type="button"
                     onClick={() => handleOpenEditModal(item)}
-                    className="p-2.5 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition-colors"
+                    aria-label={`Edit ${item.name}`}
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-stone-800 text-stone-700 transition-colors hover:bg-stone-700 hover:text-white"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDeleteItem(item.id)}
-                    className="p-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                    aria-label={`Delete ${item.name}`}
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-red-500/10 text-red-600 transition-colors hover:bg-red-500/20"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
+                  </div>
                 </div>
               </div>
             );

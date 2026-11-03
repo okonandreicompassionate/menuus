@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, ArrowUpRight, Check, Eye, FolderKanban, Menu as MenuIcon, QrCode, Store, UtensilsCrossed } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StorageService } from '../services/storage';
+import { Menu360AdireBand } from '../components/Menu360Brand';
 
 export const DashboardOverview: React.FC = () => {
   const currentUser = StorageService.getCurrentUser();
@@ -10,6 +11,7 @@ export const DashboardOverview: React.FC = () => {
   const menuItems = StorageService.getMenuItems(currentRestaurant.id);
   const categories = StorageService.getCategories(currentRestaurant.id);
   const availableItems = menuItems.filter(item => item.isAvailable).length;
+  const planLabel = currentRestaurant.plan === 'Starter' ? 'Free' : currentRestaurant.plan;
   const nextAction = categories.length === 0
     ? { label: 'Create your first category', to: '/dashboard/categories', detail: 'Start by grouping dishes into sections guests can scan.' }
     : menuItems.length === 0
@@ -24,10 +26,11 @@ export const DashboardOverview: React.FC = () => {
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       <section className="dashboard-welcome overflow-hidden rounded-[1.75rem] border border-stone-800 p-5 sm:p-8 lg:p-10">
+        <Menu360AdireBand className="mb-6" />
         <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
           <div className="max-w-2xl space-y-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-500">
-              {currentRestaurant.plan} plan · Restaurant menu
+              {planLabel} plan · Restaurant menu
             </p>
             <h2 className="text-3xl font-semibold text-white sm:text-4xl">
               Welcome, {currentUser?.name || 'Chef'}.
@@ -102,7 +105,7 @@ export const DashboardOverview: React.FC = () => {
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">Share your menu</p>
             <h3 className="text-2xl font-semibold text-white">One link, ready anywhere.</h3>
             <p className="mt-3 text-sm leading-6 text-stone-400">
-              Your public storefront is a view-only menu. Guests can browse your dishes, descriptions and prices.
+              Guests can build a basket and send their order to your restaurant on WhatsApp. Confirm availability and payment directly with them.
             </p>
           </div>
           <Link

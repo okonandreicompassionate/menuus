@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShoppingBag, CheckCircle, Clock, XCircle, Phone, MapPin } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { Order } from '../types';
+import { Menu360AdireBand, Menu360FoodIcon } from '../components/Menu360Brand';
 
 export const DashboardOrders: React.FC = () => {
   const currentUser = StorageService.getCurrentUser();
@@ -31,10 +32,13 @@ export const DashboardOrders: React.FC = () => {
       {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
 
       {orders.length === 0 ? (
-        <div className="text-center py-20 bg-stone-900 rounded-3xl border border-stone-800 text-stone-400">
-          <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p className="text-base font-semibold">No orders received yet</p>
-          <p className="text-xs text-stone-500 mt-1">Your public menu is view-only, so new orders are not created here.</p>
+        <div className="overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 text-center text-stone-400">
+          <Menu360AdireBand />
+          <div className="px-6 py-14">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#F2A31B]"><Menu360FoodIcon kind="menu" size={40} /></div>
+            <p className="text-base font-semibold">No saved orders yet</p>
+            <p className="mt-1 text-sm text-stone-500">WhatsApp requests go straight to your chat. Those conversations are not stored here.</p>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

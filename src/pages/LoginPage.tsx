@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Mail, Phone, Store, User as UserIcon, UtensilsCrossed } from 'lucide-react';
+import { ArrowRight, Lock, Mail, Phone, Store, User as UserIcon } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { AuthService } from '../services/auth';
+import { Menu360Logo } from '../components/Menu360Brand';
 import heroImage from '../assets/images/jollof_turkey_1793350581200.jpg';
 
 export const LoginPage: React.FC = () => {
@@ -16,6 +17,18 @@ export const LoginPage: React.FC = () => {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signupsEnabled, setSignupsEnabled] = useState<boolean | null>(null);
+  const [settingsError, setSettingsError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    StorageService.getPlatformSettings().then(settings => {
+      if (active) setSignupsEnabled(settings.signupsEnabled);
+    }).catch(loadError => {
+      if (active) setSettingsError(loadError instanceof Error ? loadError.message : 'Could not check account availability.');
+    });
+    return () => { active = false; };
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,15 +53,12 @@ export const LoginPage: React.FC = () => {
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
         <aside className="relative hidden overflow-hidden bg-[#1e2922] lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
           <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" />
-          <div className="absolute inset-0 bg-gradient-to-br from-[#1a261e]/75 via-[#1a261e]/50 to-[#1a261e]/90" />
-          <Link to="/" className="relative z-10 inline-flex w-fit items-center gap-3 text-white">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-              <UtensilsCrossed className="h-5 w-5" />
-            </span>
-            <span className="text-lg font-semibold tracking-tight">Menu360</span>
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0B2E1F]/75 via-[#0B2E1F]/50 to-[#0B2E1F]/90" />
+          <Link to="/" aria-label="menu360° home" className="relative z-10 inline-flex w-fit items-center gap-3 text-white">
+            <Menu360Logo dark markSize={48} />
           </Link>
           <div className="relative z-10 max-w-xl pb-10">
-            <p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#d9c7a2]">Made for good food</p>
+            <p className="mb-5 text-[13px] font-bold uppercase tracking-[0.24em] text-[#F2A31B]">Every dish, every angle.</p>
             <h1 className="font-serif text-5xl font-medium leading-[1.1] tracking-tight text-white xl:text-6xl">
               A beautiful menu starts a beautiful meal.
             </h1>
@@ -64,11 +74,8 @@ export const LoginPage: React.FC = () => {
 
         <main className="flex min-h-screen flex-col px-5 py-7 sm:px-10 lg:justify-center lg:px-14 xl:px-24">
           <div className="mx-auto w-full max-w-md">
-            <Link to="/" className="mb-10 inline-flex items-center gap-2.5 text-lg font-semibold tracking-tight text-[#233127] lg:hidden">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#304638] text-white">
-                <UtensilsCrossed className="h-5 w-5" />
-              </span>
-              Menu360
+            <Link to="/" aria-label="menu360° home" className="mb-10 inline-flex items-center gap-2.5 text-lg font-semibold tracking-tight text-[#0B2E1F] lg:hidden">
+              <Menu360Logo markSize={44} />
             </Link>
             <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.24em] text-[#77846c]">
               {isSignUp ? 'Your next chapter' : 'Welcome back'}
@@ -88,6 +95,16 @@ export const LoginPage: React.FC = () => {
             </p>
 
             <div className="mt-8 rounded-[1.5rem] border border-[#e7e2d7] bg-white p-6 shadow-[0_20px_60px_rgba(47,52,43,0.07)] sm:p-8">
+              {isSignUp && signupsEnabled === false && (
+                <p role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+                  New restaurant sign-ups are temporarily paused. Please check back soon.
+                </p>
+              )}
+              {isSignUp && settingsError && (
+                <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
+                  {settingsError}
+                </p>
+              )}
               {error && (
                 <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">
                   {error}
@@ -127,10 +144,10 @@ export const LoginPage: React.FC = () => {
                 </AuthField>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#263a2d] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#263a2d]/15 transition-all hover:bg-[#1c2d22] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSubmitting || (isSignUp && signupsEnabled !== true)}
+                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#008751] px-4 py-3.5 text-sm font-bold text-white transition-all hover:bg-[#006C40] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSubmitting ? 'Please wait…' : isSignUp ? 'Create restaurant account' : 'Sign in'}
+                  {isSubmitting ? 'Please wait…' : isSignUp && signupsEnabled === null ? 'Checking availability…' : isSignUp ? 'Create restaurant account' : 'Sign in'}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </form>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ImageUp } from 'lucide-react';
 import { StorageService } from '../services/storage';
+import { Menu360HopLoader } from './Menu360Brand';
 
 type ImageUploadFieldProps = {
   label: string;
@@ -36,7 +37,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({ label, value
       )}
       <label className={`image-upload-control inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${isUploading ? 'pointer-events-none opacity-60' : ''}`}>
         <ImageUp className="h-4 w-4" />
-        {isUploading ? 'Uploading image…' : value ? 'Choose a different image' : 'Upload an image'}
+        {isUploading ? <><Menu360HopLoader /> Uploading image…</> : value ? 'Choose a different image' : 'Upload an image'}
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp"

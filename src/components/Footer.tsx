@@ -1,20 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { UtensilsCrossed, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
+import { Menu360Logo } from './Menu360Brand';
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="border-t border-[#e7e2d7] bg-[#eeece4] px-6 py-16 text-stone-600 lg:px-12">
+    <footer className="border-t border-[#E3DCC8] bg-[#FBF6EA] px-6 py-16 text-stone-600 lg:px-12">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
         <div className="space-y-4">
-          <div className="flex items-center gap-2.5 text-[#263a2d] font-bold text-xl">
-            <div className="w-8 h-8 rounded-lg bg-[#304638] flex items-center justify-center text-white">
-              <UtensilsCrossed className="w-4 h-4" />
-            </div>
-            <span>Menu360</span>
-          </div>
+          <Menu360Logo markSize={40} />
           <p className="text-sm text-stone-400 leading-relaxed">
-            Helping Nigerian restaurants, cafes, and food vendors share beautiful, easy-to-browse digital menus.
+            Every dish, every angle. Beautiful digital menus for Nigerian food businesses.
           </p>
         </div>
 

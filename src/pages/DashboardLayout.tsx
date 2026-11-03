@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  UtensilsCrossed,
   LayoutDashboard,
   Menu as MenuIcon,
   FolderKanban,
@@ -10,13 +9,13 @@ import {
   ShieldCheck,
   LogOut,
   ExternalLink,
-  ChevronDown,
   Menu as HamburgerMenu,
   X
 } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { AuthService } from '../services/auth';
 import { Restaurant } from '../types';
+import { Menu360Loader, Menu360Logo, Menu360Mark } from '../components/Menu360Brand';
 
 export const DashboardLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -71,14 +70,14 @@ export const DashboardLayout: React.FC = () => {
   ];
 
   if (isCheckingSession) {
-    return <div className="min-h-screen bg-stone-950 text-stone-300 flex items-center justify-center">Checking your session…</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-[#FBF6EA]"><Menu360Loader label="Checking your menu" /></div>;
   }
 
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-stone-950 text-stone-300 flex flex-col items-center justify-center gap-4 p-6 text-center">
         <p>{sessionError || 'Please sign in to access your dashboard.'}</p>
-        <button onClick={() => navigate('/login')} className="rounded-xl bg-orange-600 px-5 py-3 font-semibold text-white">
+        <button onClick={() => navigate('/login')} className="rounded-xl bg-orange-600 px-6 py-3 font-semibold text-white">
           Go to sign in
         </button>
       </div>
@@ -93,12 +92,7 @@ export const DashboardLayout: React.FC = () => {
     <div data-dashboard className="min-h-screen bg-stone-950 text-stone-100 flex flex-col md:flex-row font-sans selection:bg-orange-600 selection:text-white">
       {/* Mobile Top Header */}
       <div className="md:hidden flex items-center justify-between px-6 py-4 bg-stone-900 border-b border-stone-800">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-orange-600 flex items-center justify-center text-white">
-            <UtensilsCrossed className="w-4 h-4" />
-          </div>
-          <span className="font-bold text-lg">Menu360</span>
-        </div>
+        <Menu360Logo dark markSize={38} />
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="p-2 rounded-xl bg-stone-800 text-stone-300 hover:text-white"
@@ -114,13 +108,7 @@ export const DashboardLayout: React.FC = () => {
         } md:flex flex-col w-full md:w-72 bg-stone-900 border-r border-stone-800 shrink-0 fixed md:static inset-y-0 z-40 pt-16 md:pt-0`}
       >
         <div className="p-6 border-b border-stone-800 hidden md:flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-600/20">
-            <UtensilsCrossed className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="font-bold text-base text-white">Menu360</h1>
-            <p className="text-xs text-stone-400">Merchant Dashboard</p>
-          </div>
+          <Menu360Logo dark markSize={42} />
         </div>
 
         {/* Restaurant selector info */}
@@ -134,9 +122,7 @@ export const DashboardLayout: React.FC = () => {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-stone-700 flex items-center justify-center text-stone-300 shrink-0">
-                <UtensilsCrossed className="w-5 h-5" />
-              </div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-700"><Menu360Mark size={36} dark /></div>
             )}
             <div className="truncate">
               <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">Active Store</p>
@@ -181,7 +167,7 @@ export const DashboardLayout: React.FC = () => {
             to="/"
             className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-stone-400 hover:text-white hover:bg-stone-800/60 transition-colors"
           >
-            <UtensilsCrossed className="w-4 h-4" />
+            <Menu360Mark size={22} dark />
             <span>Back to Home</span>
           </Link>
           <button

@@ -1,18 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Clock3, MapPin, Search, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, Clock3, MapPin, Minus, Plus, Search, ShoppingBag, X } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { Category, MenuItem, Restaurant } from '../types';
+import { Menu360AdireBand, Menu360FoodIcon, Menu360Logo, Menu360Progress } from '../components/Menu360Brand';
 
 export const StorefrontPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [whatsappOrderingEnabled, setWhatsappOrderingEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [customerNote, setCustomerNote] = useState('');
+  const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery'>('pickup');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [orderReference, setOrderReference] = useState('');
+  const [orderError, setOrderError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -27,6 +37,7 @@ export const StorefrontPage: React.FC = () => {
       setRestaurant(data.restaurant);
       setCategories(data.categories);
       setMenuItems(data.menuItems);
+      setWhatsappOrderingEnabled(data.whatsappOrderingEnabled);
       setIsLoading(false);
     }).catch(error => {
       if (!active) return;
@@ -46,20 +57,90 @@ export const StorefrontPage: React.FC = () => {
       return matchesCategory && matchesQuery;
     });
   }, [activeCategory, menuItems, searchQuery]);
+  const cartItems = useMemo(
+    () => menuItems.filter(item => cart[item.id] && item.isAvailable),
+    [cart, menuItems],
+  );
+  const cartItemCount = cartItems.reduce((sum, item) => sum + cart[item.id], 0);
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.price * cart[item.id], 0);
+  const whatsappPhone = restaurant?.whatsappNumber.replace(/\D/g, '') || '';
+  const whatsappOrderLines = restaurant && whatsappOrderingEnabled && whatsappPhone.length >= 7
+    && whatsappPhone.length <= 15 && cartItems.length > 0 && orderReference
+    && customerName.trim() && (fulfillment === 'pickup' || deliveryAddress.trim())
+    ? [
+      `Hello ${restaurant.name}, I'd like to request an order.`,
+      `Order reference: ${orderReference}`,
+      `Fulfilment: ${fulfillment === 'pickup' ? 'Pickup' : 'Delivery'}`,
+      `Name: ${customerName.trim()}`,
+      ...(fulfillment === 'delivery' ? [`Delivery address: ${deliveryAddress.trim()}`] : []),
+      '',
+      ...cartItems.map(item => `${cart[item.id]} × ${item.name} — ${restaurant.currency}${(item.price * cart[item.id]).toLocaleString()}`),
+      '',
+      `Total: ${restaurant.currency}${cartTotal.toLocaleString()}`,
+      customerNote.trim() ? `Note: ${customerNote.trim()}` : '',
+      '',
+      'This is an order request, not a confirmed order. Please confirm availability, any delivery fee and payment with me before preparing it.',
+    ].filter(Boolean)
+    : [];
+  const whatsappOrderUrl = whatsappOrderLines.length > 0
+    ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappOrderLines.join('\n'))}`
+    : '';
+
+  const updateCart = (itemId: string, change: number) => {
+    setCart(current => {
+      const quantity = (current[itemId] || 0) + change;
+      if (quantity <= 0) {
+        const next = { ...current };
+        delete next[itemId];
+        return next;
+      }
+      return { ...current, [itemId]: quantity };
+    });
+  };
+
+  const openOrderDialog = () => {
+    setOrderReference(`M360-${Date.now().toString(36).toUpperCase()}`);
+    setOrderError('');
+    setIsCartOpen(true);
+  };
+
+  const handleSendWhatsAppOrder = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (cartItems.length === 0) {
+      event.preventDefault();
+      setOrderError('Add at least one available dish to your order.');
+    } else if (!whatsappOrderingEnabled) {
+      event.preventDefault();
+      setOrderError('WhatsApp order requests are temporarily unavailable.');
+    } else if (!customerName.trim()) {
+      event.preventDefault();
+      setOrderError('Enter your name so the restaurant knows who the request is from.');
+    } else if (fulfillment === 'delivery' && !deliveryAddress.trim()) {
+      event.preventDefault();
+      setOrderError('Enter a delivery address or choose pickup.');
+    } else if (!whatsappOrderUrl) {
+      event.preventDefault();
+      setOrderError('This restaurant cannot receive WhatsApp orders right now.');
+    } else {
+      setOrderError('');
+    }
+  };
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-[#f7f5ef] flex items-center justify-center">
-        <p className="text-sm font-medium text-stone-500">Preparing the menu…</p>
+      <main data-storefront className="flex min-h-screen items-center justify-center bg-[#FBF6EA] px-6">
+        <div className="w-full max-w-sm space-y-8 rounded-[18px] border-2 border-[#E3DCC8] bg-white p-8">
+          <div className="flex justify-center"><Menu360Logo markSize={44} /></div>
+          <Menu360Progress />
+        </div>
       </main>
     );
   }
 
   if (!restaurant || loadError) {
     return (
-      <main className="min-h-screen bg-[#f7f5ef] flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-white border border-stone-200 flex items-center justify-center text-stone-400">
-          <UtensilsCrossed className="w-6 h-6" />
+      <main data-storefront className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#FBF6EA] px-6 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F2A31B]">
+          <Menu360FoodIcon kind="menu" size={40} />
         </div>
         <p className="text-stone-600">{loadError || 'Restaurant not found.'}</p>
         <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-800 hover:text-emerald-700">
@@ -70,7 +151,7 @@ export const StorefrontPage: React.FC = () => {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f5ef] text-[#20251f]">
+    <main data-storefront className="min-h-screen bg-[#FBF6EA] text-[#0B2E1F]">
       <header className="relative min-h-[410px] overflow-hidden bg-[#1e2922] sm:min-h-[500px]">
         {restaurant.coverImage ? (
           <img
@@ -86,8 +167,8 @@ export const StorefrontPage: React.FC = () => {
 
         <div className="relative mx-auto flex min-h-[410px] max-w-7xl flex-col px-5 pb-9 pt-6 sm:min-h-[500px] sm:px-8 sm:pb-12">
           <div className="flex items-center justify-between">
-            <Link to="/" className="inline-flex items-center gap-2 text-xs font-medium text-white/75 hover:text-white">
-              <ArrowLeft className="h-4 w-4" /> Menu360
+            <Link to="/" aria-label="menu360° home" className="inline-flex items-center gap-2 text-xs font-medium text-white/75 hover:text-white">
+              <ArrowLeft className="h-4 w-4" /> <Menu360Logo dark markSize={34} />
             </Link>
             <span className="rounded-full border border-white/25 bg-black/20 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/90 backdrop-blur">
               Restaurant menu
@@ -104,7 +185,7 @@ export const StorefrontPage: React.FC = () => {
               />
             ) : (
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white backdrop-blur sm:h-24 sm:w-24">
-                <UtensilsCrossed className="h-9 w-9" />
+                <Menu360FoodIcon kind="jollof" size={50} />
               </div>
             )}
             <div className="max-w-3xl text-white">
@@ -152,7 +233,11 @@ export const StorefrontPage: React.FC = () => {
           <div>
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[#75856a]">Made with care</p>
             <h2 className="font-serif text-3xl font-medium tracking-tight text-[#20251f] sm:text-4xl">Explore the menu</h2>
-            <p className="mt-2 text-sm text-stone-500">Browse the dishes, ingredients and prices from {restaurant.name}.</p>
+            <p className="mt-2 text-sm text-stone-500">
+              {whatsappOrderingEnabled
+                ? `Choose your dishes and send a clear pickup or delivery request to ${restaurant.name} on WhatsApp.`
+                : `Browse the menu and contact ${restaurant.name} directly to place an order.`}
+            </p>
           </div>
           <label className="relative block w-full md:max-w-xs">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
@@ -195,33 +280,155 @@ export const StorefrontPage: React.FC = () => {
         </div>
 
         {filteredItems.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-[#dcd7cb] bg-white/60 px-6 py-20 text-center">
-            <UtensilsCrossed className="mx-auto mb-4 h-8 w-8 text-[#83917a]" />
-            <h3 className="font-serif text-xl text-[#303a31]">
-              {menuItems.length === 0 ? 'The menu is being prepared' : 'No dishes found'}
-            </h3>
-            <p className="mt-2 text-sm text-stone-500">
-              {menuItems.length === 0 ? 'Please check back soon for the latest menu.' : 'Try a different search or category.'}
-            </p>
+          <div className="overflow-hidden rounded-[18px] border-2 border-[#E3DCC8] bg-white text-center">
+            <Menu360AdireBand />
+            <div className="px-6 py-14">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#F2A31B]">
+                <Menu360FoodIcon kind="plantain" size={48} />
+              </div>
+              <h3 className="font-serif text-xl text-[#0B2E1F]">
+                {menuItems.length === 0 ? 'The menu is being prepared' : 'No dishes found'}
+              </h3>
+              <p className="mt-2 text-sm text-stone-500">
+                {menuItems.length === 0 ? 'Please check back soon for the latest menu.' : 'Try a different search or category.'}
+              </p>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filteredItems.map(item => (
-              <MenuCard key={item.id} item={item} category={categories.find(category => category.id === item.categoryId)} currency={restaurant.currency} />
+              <MenuCard
+                key={item.id}
+                item={item}
+                category={categories.find(category => category.id === item.categoryId)}
+                currency={restaurant.currency}
+                quantity={cart[item.id] || 0}
+                onAdd={whatsappOrderingEnabled ? () => updateCart(item.id, 1) : undefined}
+              />
             ))}
           </div>
         )}
+        {!whatsappOrderingEnabled && (
+          <p className="mt-6 rounded-xl border border-[#e7e2d7] bg-white px-4 py-3 text-center text-sm text-stone-600">
+            Online order requests are temporarily unavailable. Please contact the restaurant directly.
+          </p>
+        )}
       </section>
 
-      <footer className="border-t border-[#e6e1d6] bg-[#f0eee7] px-5 py-8 text-center sm:px-8">
+      {whatsappOrderingEnabled && cartItemCount > 0 && !isCartOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={openOrderDialog}
+            className="mx-auto flex min-h-14 w-full max-w-xl items-center justify-between rounded-2xl bg-[#17251c] px-5 py-3 text-left text-white shadow-2xl"
+          >
+            <span className="flex items-center gap-3">
+              <ShoppingBag className="h-5 w-5" />
+              <span className="text-sm font-semibold">Review order · {cartItemCount} {cartItemCount === 1 ? 'item' : 'items'}</span>
+            </span>
+            <span className="text-sm font-bold">{restaurant.currency}{cartTotal.toLocaleString()}</span>
+          </button>
+        </div>
+      )}
+
+      {isCartOpen && whatsappOrderingEnabled && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={event => {
+          if (event.target === event.currentTarget) setIsCartOpen(false);
+        }}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-dialog-title"
+            className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-[#fbfaf7] p-5 shadow-2xl sm:rounded-3xl sm:p-7"
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#75856a]">Send via WhatsApp</p>
+                <h2 id="order-dialog-title" className="mt-1 font-serif text-2xl text-[#20251f]">Your order</h2>
+              </div>
+              <button type="button" onClick={() => setIsCartOpen(false)} aria-label="Close order" className="rounded-full p-2 text-stone-500 hover:bg-stone-100">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <ul className="divide-y divide-stone-200">
+              {cartItems.map(item => (
+                <li key={item.id} className="flex items-center justify-between gap-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-stone-800">{item.name}</p>
+                    <p className="mt-1 text-xs text-stone-500">{restaurant.currency}{item.price.toLocaleString()} each</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <button type="button" aria-label={`Remove one ${item.name}`} onClick={() => updateCart(item.id, -1)} className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-300 text-stone-700">
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="w-5 text-center text-sm font-semibold text-stone-800">{cart[item.id]}</span>
+                    <button type="button" aria-label={`Add one ${item.name}`} onClick={() => updateCart(item.id, 1)} className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-300 text-stone-700">
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-4 text-sm font-bold text-stone-900">
+              <span>Estimated total</span>
+              <span>{restaurant.currency}{cartTotal.toLocaleString()}</span>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-stone-500">The restaurant will confirm availability, delivery and final charges in WhatsApp.</p>
+
+            <label className="mt-5 block text-xs font-semibold text-stone-700">
+              Your name <span className="font-normal text-stone-500">(required)</span>
+              <input value={customerName} onChange={event => setCustomerName(event.target.value)} maxLength={100} required className="mt-1.5 w-full rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm text-stone-900 outline-none focus:border-[#718369] focus:ring-4 focus:ring-[#718369]/10" placeholder="How should the restaurant address you?" />
+            </label>
+            <fieldset className="mt-4">
+              <legend className="text-xs font-semibold text-stone-700">How would you like to receive your order?</legend>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {(['pickup', 'delivery'] as const).map(option => (
+                  <label key={option} className={`flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-semibold capitalize transition ${
+                    fulfillment === option ? 'border-[#263a2d] bg-[#263a2d] text-white' : 'border-stone-300 bg-white text-stone-700'
+                  }`}>
+                    <input type="radio" name="fulfillment" value={option} checked={fulfillment === option} onChange={() => setFulfillment(option)} className="sr-only" />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {fulfillment === 'delivery' && (
+              <label className="mt-3 block text-xs font-semibold text-stone-700">
+                Delivery address <span className="font-normal text-stone-500">(required)</span>
+                <textarea value={deliveryAddress} onChange={event => setDeliveryAddress(event.target.value)} maxLength={300} rows={2} required className="mt-1.5 w-full resize-y rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm text-stone-900 outline-none focus:border-[#718369] focus:ring-4 focus:ring-[#718369]/10" placeholder="Street, area and any useful directions" />
+              </label>
+            )}
+            <label className="mt-3 block text-xs font-semibold text-stone-700">
+              Note for the restaurant <span className="font-normal text-stone-500">(optional)</span>
+              <textarea value={customerNote} onChange={event => setCustomerNote(event.target.value)} maxLength={300} rows={2} className="mt-1.5 w-full resize-y rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm text-stone-900 outline-none focus:border-[#718369] focus:ring-4 focus:ring-[#718369]/10" placeholder="Allergies, pickup or delivery request…" />
+            </label>
+            {orderError && <p role="alert" className="mt-3 text-sm text-red-700">{orderError}</p>}
+            <a href={whatsappOrderUrl || '#'} onClick={handleSendWhatsAppOrder} target="_blank" rel="noopener noreferrer" className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#17251c] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#263a2d]">
+              Send order to WhatsApp <ShoppingBag className="h-4 w-4" />
+            </a>
+          </section>
+        </div>
+      )}
+
+      <footer className="border-t border-[#E3DCC8] bg-[#FBF6EA] px-5 py-8 text-center sm:px-8">
         <p className="font-serif text-lg text-[#29372c]">{restaurant.name}</p>
-        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">Menu for browsing</p>
+        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+          {whatsappOrderingEnabled ? 'Menu · WhatsApp order requests' : 'Menu · Browse the menu'} · Every dish, every angle.
+        </p>
       </footer>
     </main>
   );
 };
 
-function MenuCard({ item, category, currency }: { item: MenuItem; category?: Category; currency: string }) {
+function MenuCard({ item, category, currency, quantity, onAdd }: {
+  item: MenuItem;
+  category?: Category;
+  currency: string;
+  quantity: number;
+  onAdd?: () => void;
+}) {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
@@ -238,7 +445,7 @@ function MenuCard({ item, category, currency }: { item: MenuItem; category?: Cat
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-[radial-gradient(ellipse_at_top_right,_#d3d9c8,_transparent_60%),linear-gradient(135deg,_#e8e7de,_#f1eee5)] text-[#65735f]">
-            <UtensilsCrossed className="h-10 w-10 opacity-60" />
+            <Menu360FoodIcon kind="jollof" size={40} />
           </div>
         )}
         <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-[0.16em] backdrop-blur ${
@@ -256,6 +463,17 @@ function MenuCard({ item, category, currency }: { item: MenuItem; category?: Cat
           <p className="shrink-0 text-sm font-semibold text-[#465841]">{currency}{item.price.toLocaleString()}</p>
         </div>
         {item.description && <p className="text-xs leading-5 text-stone-500">{item.description}</p>}
+        {onAdd && (
+          <button
+            type="button"
+            disabled={!item.isAvailable}
+            onClick={onAdd}
+            className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#17251c] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#263a2d] disabled:cursor-not-allowed disabled:bg-stone-300"
+          >
+            <Plus className="h-4 w-4" />
+            {item.isAvailable ? quantity ? `Add another · ${quantity} in order` : 'Add to order' : 'Unavailable'}
+          </button>
+        )}
       </div>
     </article>
   );

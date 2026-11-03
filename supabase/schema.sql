@@ -34,6 +34,20 @@ alter table public.restaurants add column if not exists status text not null def
 alter table public.restaurants drop constraint if exists restaurants_status_check;
 alter table public.restaurants add constraint restaurants_status_check check (status in ('active', 'suspended'));
 
+create table if not exists public.app_settings (
+  id text primary key check (id = 'platform'),
+  settings jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.app_settings enable row level security;
+revoke all on public.app_settings from anon, authenticated;
+grant all on public.app_settings to service_role;
+
+insert into public.app_settings (id, settings)
+values ('platform', '{"signupsEnabled":true,"whatsappOrderingEnabled":true,"paidPlansVisible":true}'::jsonb)
+on conflict (id) do nothing;
+
 create table if not exists public.auth_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.app_users(id) on delete cascade,

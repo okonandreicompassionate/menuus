@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { ArrowUpRight, Building2, ShieldCheck, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StorageService } from '../services/storage';
-import { AdminRestaurant } from '../types';
+import { AdminRestaurant, PlatformSettings } from '../types';
+import { Menu360AdireBand, Menu360Logo } from '../components/Menu360Brand';
 
 export const AdminDashboard: React.FC = () => {
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalRestaurants, setTotalRestaurants] = useState(0);
   const [activeRestaurants, setActiveRestaurants] = useState(0);
@@ -21,6 +23,12 @@ export const AdminDashboard: React.FC = () => {
       setTotalUsers(result.totalUsers);
       setTotalRestaurants(result.totalRestaurants);
       setActiveRestaurants(result.activeRestaurants);
+      try {
+        setPlatformSettings(await StorageService.getAdminPlatformSettings());
+      } catch (settingsError) {
+        setPlatformSettings(null);
+        setError(settingsError instanceof Error ? settingsError.message : 'Could not load platform controls.');
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Could not load the admin dashboard.');
     } finally {
@@ -52,12 +60,26 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const updateSetting = async (setting: keyof PlatformSettings, enabled: boolean) => {
+    setUpdatingId(setting);
+    setError('');
+    try {
+      const updatedSettings = await StorageService.updateAdminPlatformSettings({ [setting]: enabled });
+      setPlatformSettings(updatedSettings);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : 'Could not update platform settings.');
+    } finally {
+      setUpdatingId('');
+    }
+  };
+
   return (
     <div data-dashboard className="min-h-screen bg-stone-950 p-5 text-stone-100 sm:p-8">
       <div className="mx-auto max-w-7xl space-y-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-orange-500">Menu360 control room</p>
+            <Menu360Logo markSize={48} className="mb-4" />
+            <p className="mb-2 text-[13px] font-bold uppercase tracking-[0.2em] text-orange-500">Platform control room</p>
             <h1 className="text-3xl font-semibold text-white sm:text-4xl">Admin dashboard</h1>
             <p className="mt-2 text-sm text-stone-400">Review registered restaurants and manage storefront availability.</p>
           </div>
@@ -72,6 +94,43 @@ export const AdminDashboard: React.FC = () => {
           <AdminStat label="Accounts" value={totalUsers} icon={Users} />
           <AdminStat label="Restaurants" value={totalRestaurants} icon={Building2} />
           <AdminStat label="Active storefronts" value={activeRestaurants} icon={ShieldCheck} />
+        </section>
+        <Menu360AdireBand />
+
+        <section className="rounded-[1.5rem] border border-stone-800 bg-stone-900 p-5 sm:p-7">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-white">Platform controls</h2>
+            <p className="mt-1 text-xs text-stone-500">Changes are saved platform-wide and apply to new requests and page loads.</p>
+          </div>
+          {platformSettings ? (
+            <div className="divide-y divide-stone-800">
+              <AdminSettingToggle
+                label="New restaurant sign-ups"
+                description="Allow new businesses to create accounts."
+                checked={platformSettings.signupsEnabled}
+                disabled={updatingId !== ''}
+                onChange={enabled => void updateSetting('signupsEnabled', enabled)}
+              />
+              <AdminSettingToggle
+                label="WhatsApp order requests"
+                description="Let guests compose orders from restaurant menus and send them to WhatsApp."
+                checked={platformSettings.whatsappOrderingEnabled}
+                disabled={updatingId !== ''}
+                onChange={enabled => void updateSetting('whatsappOrderingEnabled', enabled)}
+              />
+              <AdminSettingToggle
+                label="Show paid plans"
+                description="Display the planned Pro, Premium and Enterprise tiers on the public pricing page."
+                checked={platformSettings.paidPlansVisible}
+                disabled={updatingId !== ''}
+                onChange={enabled => void updateSetting('paidPlansVisible', enabled)}
+              />
+            </div>
+          ) : isLoading ? (
+            <p className="text-sm text-stone-500">Loading platform controls…</p>
+          ) : (
+            <p className="text-sm text-stone-400">Platform controls are unavailable until the database settings schema is installed.</p>
+          )}
         </section>
 
         <section className="overflow-hidden rounded-[1.5rem] border border-stone-800 bg-stone-900">
@@ -144,6 +203,34 @@ export const AdminDashboard: React.FC = () => {
     </div>
   );
 };
+
+function AdminSettingToggle({ label, description, checked, disabled, onChange }: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (enabled: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center justify-between gap-5 py-4 first:pt-0 last:pb-0">
+      <span>
+        <span className="block text-sm font-semibold text-stone-100">{label}</span>
+        <span className="mt-1 block max-w-2xl text-xs leading-5 text-stone-500">{description}</span>
+      </span>
+      <span className="relative inline-flex shrink-0 items-center">
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={event => onChange(event.target.checked)}
+          className="peer sr-only"
+        />
+        <span className="h-6 w-11 rounded-full bg-stone-700 transition peer-checked:bg-orange-600 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-orange-400 peer-disabled:opacity-50" />
+        <span className="pointer-events-none absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5" />
+      </span>
+    </label>
+  );
+}
 
 function AdminStat({ label, value, icon: Icon }: {
   label: string;

@@ -1,37 +1,63 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, QrCode, Smartphone, Zap, Sparkles, ScanLine, ImagePlus } from 'lucide-react';
+import { ArrowRight, CheckCircle2, QrCode, Smartphone, Zap, Sparkles } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
+import { StorageService } from '../services/storage';
+import { PlatformSettings } from '../types';
+import { Menu360FoodIcon, Menu360Logo } from '../components/Menu360Brand';
 import heroImage from '../assets/images/jollof_turkey_1793350581200.jpg';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
+  const [settingsError, setSettingsError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    StorageService.getPlatformSettings().then(settings => {
+      if (active) setPlatformSettings(settings);
+    }).catch(error => {
+      if (active) setSettingsError(error instanceof Error ? error.message : 'Could not load platform settings.');
+    });
+    return () => { active = false; };
+  }, []);
 
   return (
     <div data-marketing className="min-h-screen bg-[#f7f5ef] font-sans text-stone-900 selection:bg-[#304638] selection:text-white">
-      <Navbar />
+      <Navbar signupsEnabled={platformSettings?.signupsEnabled} />
+      {settingsError && (
+        <p role="alert" className="mx-auto max-w-7xl px-5 pt-4 text-sm text-red-700 sm:px-8 lg:px-12">
+          Platform settings could not be loaded: {settingsError}
+        </p>
+      )}
 
       {/* Hero Section */}
       <section className="relative mx-auto max-w-7xl overflow-hidden px-4 py-10 sm:px-6 sm:py-16 lg:px-12 lg:py-20">
         <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-12">
           <div className="space-y-6 lg:col-span-7">
+            <div className="flex flex-wrap items-center gap-4">
+              <Menu360Logo markSize={56} />
+              <p className="text-sm font-bold text-[#4B5D52]">Every dish, every angle.</p>
+            </div>
             <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-stone-700 shadow-sm">
               <Sparkles className="h-3.5 w-3.5 text-orange-600" />
               A digital menu made for food businesses
             </div>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight text-stone-900 sm:text-5xl lg:text-6xl">
-              Your menu, ready for the <span className="text-orange-600">next guest.</span>
+              Put every dish in its best light.
             </h1>
             <p className="max-w-xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
               Build a beautiful online menu with dish photos, descriptions and prices. Guests open your link or scan a QR code to browse on their phone—no app download needed.
             </p>
             <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
               <button
+                type="button"
+                disabled={platformSettings?.signupsEnabled === false}
                 onClick={() => navigate('/signup')}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-600/25 transition-all hover:bg-orange-700"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-600/25 transition-all hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Create your menu <ArrowRight className="h-4 w-4" />
+                {platformSettings?.signupsEnabled === false ? 'Sign-ups paused' : 'Create your menu'} <ArrowRight className="h-4 w-4" />
               </button>
               <Link
                 to="/store/the-pepper-house"
@@ -61,11 +87,11 @@ export const LandingPage: React.FC = () => {
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:absolute sm:-bottom-5 sm:-left-5 sm:mt-0 sm:w-[calc(100%+2.5rem)] sm:grid-cols-2">
               <div className="flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg sm:p-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-800"><ImagePlus className="h-4 w-4" /></span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F2A31B] text-stone-800"><Menu360FoodIcon kind="plantain" size={30} /></span>
                 <span className="text-xs font-semibold leading-4 text-stone-800 sm:text-sm">Photos &amp; prices</span>
               </div>
               <div className="flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg sm:p-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-800"><ScanLine className="h-4 w-4" /></span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F2A31B] text-stone-800"><Menu360FoodIcon kind="menu" size={30} /></span>
                 <span className="text-xs font-semibold leading-4 text-stone-800 sm:text-sm">QR-ready link</span>
               </div>
             </div>
@@ -104,8 +130,8 @@ export const LandingPage: React.FC = () => {
               },
               {
                 step: '04',
-                title: 'Let guests explore',
-                desc: 'Guests can browse dishes, read descriptions and check prices. Ordering and checkout are not part of the current app.',
+                title: 'Take clear order requests',
+                desc: 'Guests choose pickup or delivery and send their name, address, items and estimated total to your WhatsApp. You confirm the request and payment directly.',
                 icon: Sparkles,
               },
             ].map((item, idx) => (
@@ -139,7 +165,7 @@ export const LandingPage: React.FC = () => {
             <div className="space-y-4 pt-2">
               {[
                 { title: 'A refined mobile menu', desc: 'A beautiful browsing experience, designed first for the phone in your guest’s hand.' },
-                { title: 'Clear dish details', desc: 'Show names, descriptions, categories and prices without checkout friction.' },
+                { title: 'Clear dish details', desc: 'Show names, descriptions, categories and prices before guests send a structured order request.' },
                 { title: 'One easy-to-share link', desc: 'Share your storefront on social media, in messages or at your restaurant.' },
                 { title: 'Your restaurant, your style', desc: 'Add your own story, contact details, photos and opening hours.' },
               ].map((feat, idx) => (
@@ -172,47 +198,96 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Demo scope */}
-      <section id="pricing" className="py-24 bg-stone-100 border-y border-stone-200 px-6 lg:px-12">
+      {/* Pricing */}
+      <section id="pricing" className="border-y border-stone-200 bg-stone-100 px-4 py-16 sm:px-6 sm:py-20 lg:px-12 lg:py-24">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-orange-600">Demo scope</h2>
-            <h3 className="text-3xl font-extrabold tracking-tight text-stone-900">A menu that’s ready to share</h3>
-            <p className="text-stone-600 text-base">Set up your restaurant, manage dishes and let guests browse a polished public menu.</p>
+          <div className="mx-auto mb-10 max-w-2xl space-y-4 text-center sm:mb-14">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-orange-600">Straightforward plans</h2>
+            <h3 className="text-3xl font-extrabold tracking-tight text-stone-900 sm:text-4xl">Start free. Grow when you’re ready.</h3>
+            <p className="text-sm leading-6 text-stone-600 sm:text-base">
+              Your core menu, QR sharing and WhatsApp ordering are free. Paid plans are planned upgrades, not subscriptions you can buy yet.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               {
-                title: 'Public storefront',
-                description: 'Guests can browse dishes, descriptions, prices and availability on any device.',
-                icon: Smartphone,
+                name: 'Free',
+                price: '₦0',
+                cadence: 'forever',
+                tagline: 'The real essentials for one food business.',
+                features: ['One restaurant menu', 'Menu categories and dish photos', 'Shareable menu link and QR code', 'WhatsApp order basket', 'Update prices and availability'],
+                status: 'Available now',
+                featured: false,
               },
               {
-                title: 'Menu management',
-                description: 'Organize your menu into categories and keep restaurant details up to date.',
-                icon: Zap,
+                name: 'Pro',
+                price: '₦3,000',
+                cadence: 'per month',
+                tagline: 'Know what guests love and bring them back.',
+                features: ['Everything in Free', 'Menu views and popular-dish insights', 'Scheduled specials and offers', 'Remove Menu360 branding'],
+                status: 'Planned',
+                featured: true,
               },
               {
-                title: 'Easy sharing',
-                description: 'Share your public menu link or download its QR code from your dashboard.',
-                icon: QrCode,
+                name: 'Premium',
+                price: '₦7,000',
+                cadence: 'per month',
+                tagline: 'More control for busy, growing restaurants.',
+                features: ['Everything in Pro', 'Multiple staff accounts and roles', 'Menu variants and add-ons', 'Order activity and sales exports'],
+                status: 'Planned',
+                featured: false,
               },
-            ].map((plan, idx) => (
+              {
+                name: 'Enterprise',
+                price: 'Custom',
+                cadence: 'tailored to your group',
+                tagline: 'One workspace for a multi-location business.',
+                features: ['Multiple branches and shared menus', 'Branch-level staff permissions', 'Group-wide reporting', 'Onboarding and priority support'],
+                status: 'Talk to us when available',
+                featured: false,
+              },
+            ].filter(plan => platformSettings?.paidPlansVisible !== false || plan.name === 'Free').map((plan) => (
               <div
-                key={idx}
-                className="rounded-3xl border border-stone-200 bg-white p-8 shadow-sm"
+                key={plan.name}
+                className={`flex min-w-0 flex-col rounded-3xl border bg-white p-5 shadow-sm sm:p-6 ${
+                  plan.featured ? 'border-[#304638] ring-2 ring-[#304638]/10' : 'border-stone-200'
+                }`}
               >
-                <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-stone-100 text-stone-600">
-                  <plan.icon className="h-5 w-5" />
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-lg font-bold text-stone-900">{plan.name}</h4>
+                  {plan.featured && <span className="rounded-full bg-[#304638]/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-[#304638]">Most popular</span>}
                 </div>
-                <h4 className="mb-2 text-lg font-semibold text-stone-900">{plan.title}</h4>
-                <p className="text-sm leading-6 text-stone-600">{plan.description}</p>
+                <p className="mt-4 text-2xl font-extrabold tracking-tight text-stone-900 sm:text-3xl">{plan.price}</p>
+                <p className="mt-1 text-xs font-medium text-stone-500">{plan.cadence}</p>
+                <p className="mt-4 min-h-10 text-sm leading-5 text-stone-600">{plan.tagline}</p>
+                <ul className="mt-5 flex-1 space-y-3 border-t border-stone-100 pt-5">
+                  {plan.features.map(feature => (
+                    <li key={feature} className="flex gap-2 text-xs leading-5 text-stone-700">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                {plan.name === 'Free' ? (
+                  <button
+                    type="button"
+                    disabled={platformSettings?.signupsEnabled === false}
+                    onClick={() => navigate('/signup')}
+                    className="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#263a2d] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1c2d22] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {platformSettings?.signupsEnabled === false ? 'Sign-ups paused' : 'Start free'} <ArrowRight className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <div className="mt-6 flex min-h-11 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-center text-xs font-semibold text-stone-500">
+                    {plan.status}
+                  </div>
+                )}
               </div>
             ))}
           </div>
-          <p className="mt-8 text-center text-sm text-stone-500">
-            Menu360 currently publishes view-only menus. It does not process orders, payments or subscriptions.
+          <p className="mx-auto mt-7 max-w-3xl text-center text-xs leading-5 text-stone-500">
+            WhatsApp orders are sent directly to the restaurant; customers confirm delivery and payment with the business. Menu360 does not collect payments. Paid prices and features are planned and are not available for purchase yet.
           </p>
         </div>
       </section>
@@ -228,7 +303,7 @@ export const LandingPage: React.FC = () => {
           {[
             {
               q: 'Can guests order from the menu?',
-              a: 'The public storefront is designed for browsing only. Guests can explore dishes, descriptions and prices; it does not include a cart or checkout.',
+              a: 'Guests can build a basket and send the order details to your restaurant’s WhatsApp. You confirm availability, delivery and payment directly with them.',
             },
             {
               q: 'Do I need technical skills to set up my menu?',
@@ -236,7 +311,7 @@ export const LandingPage: React.FC = () => {
             },
             {
               q: 'Are there any hidden commission fees?',
-              a: 'The current app publishes view-only menus. It does not process orders or payments, and subscription billing is not enabled.',
+              a: 'Menu360 does not process payments. Guests send their order to your WhatsApp and arrange payment with your restaurant. Paid subscriptions are not available yet.',
             },
             {
               q: 'Can I download a QR code for my restaurant tables?',

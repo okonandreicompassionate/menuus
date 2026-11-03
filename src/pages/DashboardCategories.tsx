@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Trash2, Edit2, FolderKanban, LoaderCircle, X, UtensilsCrossed } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { Category } from '../types';
+import { Menu360AdireBand, Menu360FoodIcon } from '../components/Menu360Brand';
 
 const suggestedCategories = [
   { name: 'Rice & Pasta', description: 'Jollof, fried rice, pasta and sides' },
@@ -94,6 +95,7 @@ export const DashboardCategories: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 sm:space-y-8">
+      <Menu360AdireBand />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-extrabold text-white sm:text-3xl">Menu categories</h2>
@@ -137,8 +139,8 @@ export const DashboardCategories: React.FC = () => {
               const itemCount = menuItems.filter(item => item.categoryId === cat.id).length;
               return (
                 <article key={cat.id} className="flex min-w-0 items-center gap-3 rounded-2xl border border-stone-800 bg-stone-900 p-4 sm:gap-4 sm:p-5">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-800 text-xs font-bold text-stone-400">
-                    {String(idx + 1).padStart(2, '0')}
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#F2A31B]">
+                    <Menu360FoodIcon kind={categoryIcon(cat.name)} size={40} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate font-semibold text-white">{cat.name}</h3>
@@ -277,4 +279,15 @@ function CategorySuggestions({
       })}
     </div>
   );
+}
+
+function categoryIcon(name: string): 'jollof' | 'suya' | 'plantain' | 'puffpuff' | 'soup' | 'zobo' | 'pie' | 'menu' {
+  const normalized = name.toLowerCase();
+  if (/(drink|juice|cocktail|zobo)/.test(normalized)) return 'zobo';
+  if (/(soup|swallow|stew)/.test(normalized)) return 'soup';
+  if (/(grill|suya|meat|fish)/.test(normalized)) return 'suya';
+  if (/(snack|chop|puff|starter)/.test(normalized)) return 'puffpuff';
+  if (/(dessert|pie|bake)/.test(normalized)) return 'pie';
+  if (/(rice|pasta|main)/.test(normalized)) return 'jollof';
+  return 'menu';
 }

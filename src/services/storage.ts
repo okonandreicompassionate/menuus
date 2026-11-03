@@ -1,4 +1,4 @@
-import { AdminRestaurant, Restaurant, Category, MenuItem, Order, User } from '../types';
+import { AdminRestaurant, PlatformSettings, Restaurant, Category, MenuItem, Order, User } from '../types';
 import { apiUrl, readApiResponse } from './http';
 import { DEMO_CATEGORIES, DEMO_MENU_ITEMS, DEMO_RESTAURANT } from '../data/mockData';
 
@@ -141,15 +141,21 @@ export const StorageService = {
     restaurant: Restaurant;
     categories: Category[];
     menuItems: MenuItem[];
+    whatsappOrderingEnabled: boolean;
   }> {
     if (slug === DEMO_RESTAURANT.slug) {
       return {
         restaurant: DEMO_RESTAURANT,
         categories: DEMO_CATEGORIES,
         menuItems: DEMO_MENU_ITEMS,
+        whatsappOrderingEnabled: true,
       };
     }
     return apiRequest(`/api/storefront/${encodeURIComponent(slug)}`);
+  },
+
+  async getPlatformSettings(): Promise<PlatformSettings> {
+    return apiRequest('/api/app-config');
   },
 
   async getDashboard(): Promise<{
@@ -191,5 +197,13 @@ export const StorageService = {
 
   async setRestaurantStatus(id: string, status: 'active' | 'suspended'): Promise<void> {
     await apiRequest<void>(`/api/admin/restaurants/${encodeURIComponent(id)}/status`, 'PATCH', { status });
+  },
+
+  async getAdminPlatformSettings(): Promise<PlatformSettings> {
+    return apiRequest('/api/admin/settings');
+  },
+
+  async updateAdminPlatformSettings(settings: Partial<PlatformSettings>): Promise<PlatformSettings> {
+    return apiRequest('/api/admin/settings', 'PATCH', settings);
   },
 };
