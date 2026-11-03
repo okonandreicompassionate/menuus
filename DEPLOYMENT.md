@@ -1,39 +1,44 @@
-# Deploy MenuDrop to Vercel
+# Deploy MenuDrop to Render
 
 ## 1. Prepare Supabase
 
 1. Open the correct Supabase project and go to **SQL Editor**.
-2. Run the current `supabase/schema.sql`. It creates/updates the app tables, admin and restaurant status fields, and the public image bucket.
-3. Keep the Supabase service-role key private. It belongs only in Vercel's server environment variables.
+2. Run the current `supabase/schema.sql`. It creates/updates the app tables, admin and restaurant status fields, and the image storage bucket.
+3. Keep the Supabase service-role key private. Render needs it as a server environment variable only.
 
-Do not create a new account just for deployment. Existing users receive the default `owner` role during the migration.
+Existing accounts keep the default `owner` role; do not create another account just to deploy.
 
-## 2. Import the Git repository into Vercel
+## 2. Import the repository
 
 1. Push the project to the GitHub repository.
-2. In Vercel, choose **Add New → Project** and import the repository.
-3. Use the repository root as the project root and Vite as the framework preset.
-4. Set the build command to `npm run build` and output directory to `dist` (also configured in `vercel.json`).
-5. Deploy. The Vercel function in `api/[...path].ts` serves the existing Express API; the Vite app is served as static output.
+2. In Render, choose **New → Blueprint** and connect the repository containing `render.yaml`.
+3. Review the `menudrop` web service. The Blueprint uses Node 22, builds the Vite frontend, starts the Express server, and configures `/api/health` for health checks.
+4. When prompted, provide `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for the Render service.
+5. Apply the Blueprint and wait for the first deploy to finish.
 
-## 3. Add server environment variables
+The Express server serves both the built frontend and API on Render's assigned `PORT`. Do not run Vite as the production server.
 
-In the Vercel project, open **Settings → Environment Variables** and add these for Production (and Preview if you will test preview deployments):
+## 3. Check environment variables
+
+In the Render service, open **Environment** and confirm:
 
 | Name | Value |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | The server-only service-role secret from Supabase |
-| `APP_ORIGIN` | Your canonical production origin, e.g. `https://menu.example.com` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Supabase service-role secret |
+| `NODE_ENV` | `production` (set by the Blueprint) |
+| `APP_ORIGIN` | Optional canonical origin after adding your custom domain |
 
-Never prefix the service-role secret with `NEXT_PUBLIC_` or `VITE_`. Preview deployment hosts are allowed from Vercel's runtime environment. Redeploy after adding or changing environment variables.
+Render's default service origin is allowed automatically. Add `APP_ORIGIN` when you decide which custom domain is canonical, for example `https://menu.example.com`, then save and redeploy.
+
+Never put the service-role key in a `NEXT_PUBLIC_*` or `VITE_*` variable. If this secret has been exposed, rotate it in Supabase before deploying and update Render with the replacement.
 
 ## 4. Connect your domain
 
-1. In Vercel, open **Settings → Domains** and add the domain you registered.
-2. Follow the DNS records Vercel displays at your domain registrar. DNS records depend on the domain/registrar, so use Vercel's values rather than guessing.
-3. Wait until Vercel reports the domain as valid and HTTPS is enabled.
-4. Set `APP_ORIGIN` to the exact canonical origin you plan to use (`https://yourdomain.com` or `https://www.yourdomain.com`) and redeploy.
+1. Open the Render service **Settings → Custom Domains** and add your domain.
+2. At your domain registrar, enter the DNS records Render displays for that domain. Do not guess the record values.
+3. Wait until Render verifies the domain and provisions HTTPS.
+4. Set `APP_ORIGIN` to the exact canonical HTTPS origin (apex or `www`) and redeploy.
 
 ## 5. Grant your account admin access
 
@@ -45,21 +50,21 @@ set role = 'admin'
 where lower(email) = lower('you@example.com');
 ```
 
-Sign out and back in to refresh the role in the session. Open `/admin` on your deployed site.
+Sign out and back in to refresh the role. Open `/admin` on your Render site.
 
-## 6. Smoke-test production
+## 6. Production smoke test
 
+- Open `/api/health`; it should return `{"status":"ok"}`.
 - Sign in with an existing account and open its merchant dashboard.
-- Upload a JPG, PNG, or WebP (up to 3 MB), then confirm the image is saved and visible in the storefront.
-- Open the public `/store/<slug>` page and check a direct refresh works.
-- Copy the storefront link and confirm the QR code points at the deployed domain.
-- Open `/admin` as the promoted admin; verify a normal owner gets a 403 from admin actions.
+- Upload a JPG, PNG, or WebP up to 3 MB, then confirm it is visible in the storefront.
+- Open `/store/<slug>` directly and refresh the page.
+- Copy the storefront link and confirm its QR code uses the deployed domain.
+- Open `/admin` as the promoted admin; verify a normal owner cannot use admin actions.
 - Only test suspension/reactivation with a non-critical demo restaurant.
 
-The 3 MB upload limit keeps base64 uploads below the Vercel Function request-body limit.
+## Troubleshooting
 
-## Troubleshooting deployed API errors
-
-- **`/api/auth/signup` returns Vercel's `404 NOT_FOUND`:** redeploy a commit containing `api/index.ts` and the `/api/:path*` rewrite in `vercel.json`. They route nested Express endpoints through one function.
-- **An API request returns `FUNCTION_INVOCATION_FAILED`:** check **Vercel → Project → Settings → Environment Variables**. Confirm `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set for the environment used by that deployment, then redeploy.
-- **The function runs but returns a database error:** run the current `supabase/schema.sql` in the matching Supabase project and inspect Vercel Runtime Logs for the database error details.
+- **Health check fails or the app does not start:** check Render **Logs**. Confirm the Supabase URL and service-role secret are set. The process must bind to Render's `PORT`, which this server reads automatically.
+- **API returns an application-level 500:** inspect Render logs for the database error and confirm `supabase/schema.sql` was run in the same Supabase project.
+- **Write requests return 403:** set `APP_ORIGIN` to the exact public HTTPS origin if using a custom domain, then redeploy.
+- **Uploads fail:** confirm the schema created the `menudrop-images` bucket and try an allowed JPG, PNG, or WebP file no larger than 3 MB.

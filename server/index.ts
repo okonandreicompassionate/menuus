@@ -13,16 +13,16 @@ const scrypt = promisify(scryptCallback);
 const app = express();
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const staticDirectory = path.resolve(serverDirectory, '../dist');
-const port = Number(env.API_PORT || 4000);
+const port = Number(env.PORT || env.API_PORT || 4000);
 const sessionCookie = 'menudrop_session';
 const sessionLifetimeMs = 7 * 24 * 60 * 60 * 1000;
 const allowedOrigins = new Set(
   [
-    env.APP_ORIGIN || (env.NODE_ENV === 'production' ? '' : 'http://localhost:3000'),
-    env.VERCEL_URL ? `https://${env.VERCEL_URL}` : '',
-    env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : '',
+    env.APP_ORIGIN,
+    env.RENDER_EXTERNAL_URL,
+    env.NODE_ENV === 'production' ? '' : 'http://localhost:3000',
   ]
-    .filter(Boolean)
+    .filter((origin): origin is string => Boolean(origin))
     .map(origin => new URL(origin).origin),
 );
 
@@ -43,15 +43,8 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 app.disable('x-powered-by');
 app.use(express.json({ limit: '4.25mb' }));
 
-app.use((req, _res, next) => {
-  const originalPath = req.query.__originalPath;
-  if (env.VERCEL === '1' && typeof originalPath === 'string' && originalPath.startsWith('/api/')) {
-    const query = new URL(req.originalUrl, 'https://menudrop.invalid').searchParams;
-    query.delete('__originalPath');
-    const remainingQuery = query.toString();
-    req.url = `${originalPath}${remainingQuery ? `?${remainingQuery}` : ''}`;
-  }
-  next();
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
 
 type AppUser = {
@@ -878,7 +871,7 @@ app.patch('/api/orders/:id', asyncRoute(async (req, res) => {
   res.json(mapOrder(data));
 }));
 
-if (env.NODE_ENV === 'production' && env.VERCEL !== '1') {
+if (env.NODE_ENV === 'production') {
   app.use(express.static(staticDirectory));
   app.get('*', (_req, res) => res.sendFile(path.join(staticDirectory, 'index.html')));
 }
@@ -889,10 +882,8 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'The server could not complete the request. Please try again.' });
 });
 
-if (env.VERCEL !== '1') {
-  app.listen(port, () => {
-    console.log(`MenuDrop API listening on port ${port}`);
-  });
-}
+app.listen(port, '0.0.0.0', () => {
+  console.log(`MenuDrop server listening on port ${port}`);
+});
 
 export default app;
