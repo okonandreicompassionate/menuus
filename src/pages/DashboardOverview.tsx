@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpRight, Check, Eye, FolderKanban, Menu as MenuIcon, QrCode, Store, UtensilsCrossed } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, Eye, FolderKanban, Menu as MenuIcon, QrCode, Store, UtensilsCrossed } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StorageService } from '../services/storage';
 
@@ -10,6 +10,11 @@ export const DashboardOverview: React.FC = () => {
   const menuItems = StorageService.getMenuItems(currentRestaurant.id);
   const categories = StorageService.getCategories(currentRestaurant.id);
   const availableItems = menuItems.filter(item => item.isAvailable).length;
+  const nextAction = categories.length === 0
+    ? { label: 'Create your first category', to: '/dashboard/categories', detail: 'Start by grouping dishes into sections guests can scan.' }
+    : menuItems.length === 0
+      ? { label: 'Add your first dish', to: '/dashboard/menu', detail: 'Add a dish name, photo, description and price to build your menu.' }
+      : { label: 'Get your menu link', to: '/dashboard/storefront', detail: 'Your menu is taking shape. Get its QR code and shareable link.' };
   const setupSteps = [
     { label: 'Add a menu category', complete: categories.length > 0, to: '/dashboard/categories', icon: FolderKanban },
     { label: 'Add your first dish', complete: menuItems.length > 0, to: '/dashboard/menu', icon: MenuIcon },
@@ -17,9 +22,9 @@ export const DashboardOverview: React.FC = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
-      <section className="dashboard-welcome overflow-hidden rounded-[1.75rem] border border-stone-800 p-7 sm:p-10">
-        <div className="flex flex-col justify-between gap-7 md:flex-row md:items-end">
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      <section className="dashboard-welcome overflow-hidden rounded-[1.75rem] border border-stone-800 p-5 sm:p-8 lg:p-10">
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
           <div className="max-w-2xl space-y-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-500">
               {currentRestaurant.plan} plan · Restaurant menu
@@ -28,28 +33,38 @@ export const DashboardOverview: React.FC = () => {
               Welcome, {currentUser?.name || 'Chef'}.
             </h2>
             <p className="text-sm leading-6 text-stone-400">
-              Keep {currentRestaurant.name}’s menu up to date, then share it with your guests.
+              Manage {currentRestaurant.name}’s dishes in one place, then share a polished menu guests can browse on their phones.
             </p>
           </div>
-          <Link
-            to={`/store/${currentRestaurant.slug}`}
-            target="_blank"
-            className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-700 md:self-auto"
-          >
-            Preview public menu <ArrowUpRight className="h-4 w-4" />
-          </Link>
+          <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+            <Link
+              to={nextAction.to}
+              className="dashboard-primary-cta inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition"
+            >
+              {nextAction.label} <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              to={`/store/${currentRestaurant.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-stone-700 px-5 py-3 text-sm font-semibold text-stone-300 transition hover:bg-stone-800/60"
+            >
+              Preview menu <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
+        <p className="mt-5 max-w-2xl text-xs leading-5 text-stone-500">{nextAction.detail}</p>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Restaurant overview" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <OverviewStat label="Menu items" value={menuItems.length} detail="Dishes on your menu" icon={MenuIcon} />
         <OverviewStat label="Categories" value={categories.length} detail="Menu sections" icon={FolderKanban} />
         <OverviewStat label="Available" value={availableItems} detail="Ready to be viewed" icon={Check} />
         <OverviewStat label="Restaurant status" value={currentRestaurant.isOpen ? 'Open' : 'Closed'} detail="Menu remains available to browse" icon={Eye} />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-[1.5rem] border border-stone-800 bg-stone-900 p-6 sm:p-8">
+      <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:gap-6">
+        <div className="rounded-[1.5rem] border border-stone-800 bg-stone-900 p-5 sm:p-8">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">Getting started</p>
@@ -79,7 +94,7 @@ export const DashboardOverview: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-[1.5rem] border border-stone-800 bg-stone-900 p-6 sm:p-8">
+        <div className="flex flex-col justify-between rounded-[1.5rem] border border-stone-800 bg-stone-900 p-5 sm:p-8">
           <div>
             <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-600/10 text-orange-500">
               <QrCode className="h-5 w-5" />

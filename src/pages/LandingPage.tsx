@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, QrCode, Smartphone, Zap, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, QrCode, Smartphone, Zap, Sparkles, ScanLine, ImagePlus } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import heroImage from '../assets/images/jollof_turkey_1793350581200.jpg';
@@ -13,57 +13,60 @@ export const LandingPage: React.FC = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative pt-16 pb-24 px-6 lg:px-12 max-w-7xl mx-auto overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          <div className="lg:col-span-7 space-y-6">
-            <div className="text-xs font-semibold tracking-widest text-orange-600 uppercase">
-              A considered digital home for your menu
+      <section className="relative mx-auto max-w-7xl overflow-hidden px-4 py-10 sm:px-6 sm:py-16 lg:px-12 lg:py-20">
+        <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-12">
+          <div className="space-y-6 lg:col-span-7">
+            <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-stone-700 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5 text-orange-600" />
+              A digital menu made for food businesses
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-stone-900 leading-[1.12]">
-              Let your menu make a <span className="text-orange-600">lasting first impression.</span>
+            <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight text-stone-900 sm:text-5xl lg:text-6xl">
+              Your menu, ready for the <span className="text-orange-600">next guest.</span>
             </h1>
-            <p className="text-lg text-stone-600 max-w-xl leading-relaxed">
-              Give every dish the space it deserves. Share a polished, mobile-first menu your guests can browse anywhere.
+            <p className="max-w-xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
+              Build a beautiful online menu with dish photos, descriptions and prices. Guests open your link or scan a QR code to browse on their phone—no app download needed.
             </p>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
+            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
               <button
                 onClick={() => navigate('/signup')}
-                className="flex items-center justify-center gap-2 px-6 py-3.5 bg-orange-600 text-white font-semibold rounded-2xl hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/25 text-base"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-600/25 transition-all hover:bg-orange-700"
               >
-                Create Your Menu <ArrowRight className="w-4 h-4" />
+                Create your menu <ArrowRight className="h-4 w-4" />
               </button>
               <Link
                 to="/store/the-pepper-house"
-                className="flex items-center justify-center gap-2 px-6 py-3.5 bg-white border border-stone-300 text-stone-800 font-semibold rounded-2xl hover:bg-stone-50 transition-all text-base shadow-sm"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-stone-300 bg-white px-6 py-3.5 text-base font-semibold text-stone-800 shadow-sm transition-all hover:bg-stone-50"
               >
-                Explore Live Demo <Smartphone className="w-4 h-4 text-orange-600" />
+                Explore the demo <Smartphone className="h-4 w-4 text-orange-600" />
               </Link>
             </div>
-            <div className="flex items-center gap-4 text-xs font-medium text-stone-500 pt-2">
-              <span>No credit card required</span>
-              <span aria-hidden="true">·</span>
-              <span>Simple, view-only menu</span>
-              <span aria-hidden="true">·</span>
-              <span>Free QR generator</span>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 pt-2 text-xs font-medium text-stone-600 sm:text-sm">
+              <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-700" /> Edit your menu any time</span>
+              <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-700" /> Share by link or QR</span>
             </div>
           </div>
 
-          <div className="lg:col-span-5 relative">
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-stone-900">
+          <div className="relative lg:col-span-5">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[1.75rem] border-4 border-white bg-stone-900 shadow-2xl sm:aspect-[5/4]">
               <img
                 src={heroImage}
-                alt="Menu360 Digital Storefront Preview"
-                className="w-full h-auto object-cover transform hover:scale-105 transition-transform duration-700"
+                alt="A sample dish shown on the Menu360 digital menu"
+                className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
                 referrerPolicy="no-referrer"
               />
-            </div>
-            <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-stone-200 hidden sm:flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                ₦
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent p-4 pt-16 text-white sm:p-6 sm:pt-20">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">A sample guest view</p>
+                <p className="mt-1 text-lg font-semibold sm:text-xl">A closer look at what’s on the menu</p>
               </div>
-              <div>
-                <p className="text-xs text-stone-500 font-medium">Zero Commission</p>
-                <p className="text-sm font-bold text-stone-900">Keep 100% of your earnings</p>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:absolute sm:-bottom-5 sm:-left-5 sm:mt-0 sm:w-[calc(100%+2.5rem)] sm:grid-cols-2">
+              <div className="flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg sm:p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-800"><ImagePlus className="h-4 w-4" /></span>
+                <span className="text-xs font-semibold leading-4 text-stone-800 sm:text-sm">Photos &amp; prices</span>
+              </div>
+              <div className="flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg sm:p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-800"><ScanLine className="h-4 w-4" /></span>
+                <span className="text-xs font-semibold leading-4 text-stone-800 sm:text-sm">QR-ready link</span>
               </div>
             </div>
           </div>
@@ -96,13 +99,13 @@ export const LandingPage: React.FC = () => {
               {
                 step: '03',
                 title: 'Share QR & Link',
-                desc: 'Print your custom QR code table tents, share your unique link on Instagram, Twitter, and WhatsApp status.',
+                desc: 'Get a shareable menu link and QR code for tables, messages and social media.',
                 icon: QrCode,
               },
               {
                 step: '04',
                 title: 'Let guests explore',
-                desc: 'Guests can browse dishes, read descriptions and check prices with no cart or checkout in the way.',
+                desc: 'Guests can browse dishes, read descriptions and check prices. Ordering and checkout are not part of the current app.',
                 icon: Sparkles,
               },
             ].map((item, idx) => (
@@ -209,7 +212,7 @@ export const LandingPage: React.FC = () => {
             ))}
           </div>
           <p className="mt-8 text-center text-sm text-stone-500">
-            Account billing and customer ordering are not enabled in this demo.
+            Menu360 currently publishes view-only menus. It does not process orders, payments or subscriptions.
           </p>
         </div>
       </section>
@@ -233,7 +236,7 @@ export const LandingPage: React.FC = () => {
             },
             {
               q: 'Are there any hidden commission fees?',
-              a: 'Menu360 is view-only in this demo: it does not collect payments or process customer orders. Subscription billing is not enabled yet.',
+              a: 'The current app publishes view-only menus. It does not process orders or payments, and subscription billing is not enabled.',
             },
             {
               q: 'Can I download a QR code for my restaurant tables?',

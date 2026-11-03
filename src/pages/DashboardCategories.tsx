@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, FolderKanban, Check, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Trash2, Edit2, FolderKanban, LoaderCircle, X, UtensilsCrossed } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { Category } from '../types';
+
+const suggestedCategories = [
+  { name: 'Rice & Pasta', description: 'Jollof, fried rice, pasta and sides' },
+  { name: 'Soups & Swallows', description: 'Soups, stews and swallow dishes' },
+  { name: 'Grills & Mains', description: 'Grilled meats, fish and main dishes' },
+  { name: 'Small Chops', description: 'Starters, snacks and party bites' },
+  { name: 'Drinks', description: 'Juices, soft drinks and cocktails' },
+  { name: 'Desserts', description: 'Sweet treats and baked goods' },
+];
 
 export const DashboardCategories: React.FC = () => {
   const currentUser = StorageService.getCurrentUser();
@@ -13,6 +23,11 @@ export const DashboardCategories: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [savingPreset, setSavingPreset] = useState('');
+  const menuItems = StorageService.getMenuItems(currentRestaurant.id);
+  const availableSuggestions = suggestedCategories.filter(suggestion =>
+    !categories.some(category => category.name.trim().toLowerCase() === suggestion.name.toLowerCase()),
+  );
 
   const handleOpenAdd = () => {
     setEditingCategory(null);
@@ -47,6 +62,24 @@ export const DashboardCategories: React.FC = () => {
     }
   };
 
+  const handleAddSuggestion = async (suggestionName: string) => {
+    setError('');
+    setSavingPreset(suggestionName);
+    try {
+      await StorageService.saveCategory({
+        id: '',
+        restaurantId: currentRestaurant.id,
+        name: suggestionName,
+        sortOrder: categories.length + 1,
+      });
+      setCategories(StorageService.getCategories(currentRestaurant.id));
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not add this category.');
+    } finally {
+      setSavingPreset('');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       setError('');
@@ -60,61 +93,104 @@ export const DashboardCategories: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="mx-auto max-w-5xl space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Menu Categories</h2>
-          <p className="text-sm text-stone-400">Organize your food items into clear navigation sections.</p>
+          <h2 className="text-2xl font-extrabold text-white sm:text-3xl">Menu categories</h2>
+          <p className="mt-1 max-w-xl text-sm leading-6 text-stone-400">
+            Group dishes into sections so guests can quickly find what they’re looking for.
+          </p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/25 text-sm whitespace-nowrap"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-600/25 transition-colors hover:bg-orange-700 sm:w-auto"
         >
-          <Plus className="w-4 h-4" /> Add Category
+          <Plus className="h-4 w-4" /> Add category
         </button>
       </div>
 
       {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
 
-      <div className="bg-stone-900 rounded-3xl border border-stone-800 overflow-hidden">
-        {categories.length === 0 ? (
-          <div className="text-center py-16 text-stone-400">
-            <FolderKanban className="w-12 h-12 mx-auto mb-3 opacity-40" />
-            <p className="text-sm">No categories created yet.</p>
+      {categories.length === 0 ? (
+        <section className="rounded-3xl border border-stone-800 bg-stone-900 p-5 sm:p-8">
+          <div className="mb-6 flex gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-600/10 text-orange-500">
+              <FolderKanban className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Start with a menu section</h3>
+              <p className="mt-1 text-sm leading-6 text-stone-400">
+                Pick a suggestion below or create a category with your own name. You can rename it any time.
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="divide-y divide-stone-800">
-            {categories.map((cat, idx) => (
-              <div key={cat.id} className="p-6 flex items-center justify-between hover:bg-stone-800/40 transition-colors">
-                <div className="flex items-center gap-4">
-                  <span className="w-8 h-8 rounded-xl bg-stone-800 text-stone-400 flex items-center justify-center font-bold text-xs">
-                    0{idx + 1}
+          <CategorySuggestions
+            suggestions={availableSuggestions}
+            savingName={savingPreset}
+            onAdd={handleAddSuggestion}
+          />
+        </section>
+      ) : (
+        <>
+          <section aria-label="Your menu categories" className="grid gap-3 sm:grid-cols-2">
+            {categories.map((cat, idx) => {
+              const itemCount = menuItems.filter(item => item.categoryId === cat.id).length;
+              return (
+                <article key={cat.id} className="flex min-w-0 items-center gap-3 rounded-2xl border border-stone-800 bg-stone-900 p-4 sm:gap-4 sm:p-5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-800 text-xs font-bold text-stone-400">
+                    {String(idx + 1).padStart(2, '0')}
                   </span>
-                  <div>
-                    <h4 className="font-bold text-white text-base">{cat.name}</h4>
-                    <p className="text-xs text-stone-400">Category ID: {cat.id}</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate font-semibold text-white">{cat.name}</h3>
+                    <p className="mt-1 text-xs text-stone-400">
+                      {itemCount} {itemCount === 1 ? 'dish' : 'dishes'}
+                    </p>
                   </div>
-                </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(cat)}
+                      aria-label={`Edit ${cat.name}`}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-800 text-stone-300 transition-colors hover:bg-stone-700 hover:text-white"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(cat.id)}
+                      aria-label={`Delete ${cat.name}`}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-400 transition-colors hover:bg-red-500/20"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleOpenEdit(cat)}
-                    className="p-2.5 rounded-xl bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(cat.id)}
-                    className="p-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+          {availableSuggestions.length > 0 && (
+            <section className="rounded-3xl border border-stone-800 bg-stone-900 p-5 sm:p-7">
+              <div className="mb-5">
+                <h3 className="font-semibold text-white">Quick-add suggestions</h3>
+                <p className="mt-1 text-sm text-stone-400">Add common sections in one tap, then customize them to suit your menu.</p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <CategorySuggestions
+                suggestions={availableSuggestions}
+                savingName={savingPreset}
+                onAdd={handleAddSuggestion}
+              />
+            </section>
+          )}
+
+          <Link
+            to="/dashboard/menu"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+          >
+            <UtensilsCrossed className="h-4 w-4" /> Add dishes to your menu
+          </Link>
+        </>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
@@ -167,3 +243,38 @@ export const DashboardCategories: React.FC = () => {
     </div>
   );
 };
+
+function CategorySuggestions({
+  suggestions,
+  savingName,
+  onAdd,
+}: {
+  suggestions: { name: string; description: string }[];
+  savingName: string;
+  onAdd: (name: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {suggestions.map(suggestion => {
+        const isSaving = savingName === suggestion.name;
+        return (
+          <button
+            key={suggestion.name}
+            type="button"
+            onClick={() => onAdd(suggestion.name)}
+            disabled={Boolean(savingName)}
+            className="group flex min-h-20 items-center gap-3 rounded-2xl border border-stone-800 bg-stone-800/30 p-4 text-left transition hover:border-stone-700 hover:bg-stone-800/60 disabled:cursor-wait disabled:opacity-60"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-800 text-stone-300 transition group-hover:bg-orange-600/10 group-hover:text-orange-500">
+              {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-white">{suggestion.name}</span>
+              <span className="mt-1 block text-xs leading-5 text-stone-400">{suggestion.description}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}

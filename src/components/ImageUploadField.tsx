@@ -34,7 +34,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({ label, value
       {value && (
         <img src={value} alt={`${label} preview`} className="h-36 w-full rounded-xl border border-stone-700 object-cover" />
       )}
-      <label className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border border-stone-700 bg-stone-800 px-4 py-2.5 text-sm font-medium text-stone-200 transition hover:bg-stone-700 ${isUploading ? 'pointer-events-none opacity-60' : ''}`}>
+      <label className={`image-upload-control inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${isUploading ? 'pointer-events-none opacity-60' : ''}`}>
         <ImageUp className="h-4 w-4" />
         {isUploading ? 'Uploading image…' : value ? 'Choose a different image' : 'Upload an image'}
         <input

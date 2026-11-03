@@ -218,6 +218,22 @@ a {
   background: linear-gradient(135deg, #fff 0%, #f2f3ed 100%);
 }
 
+[data-dashboard] .dashboard-primary-cta,
+[data-dashboard] .image-upload-control {
+  background-color: #111;
+  color: #fff;
+}
+
+[data-dashboard] .dashboard-primary-cta:hover,
+[data-dashboard] .image-upload-control:hover {
+  background-color: #292929;
+  color: #fff;
+}
+
+[data-dashboard] .image-upload-control {
+  border: 1px solid #111;
+}
+
 [data-dashboard] aside {
   border-color: #e8e5dc;
   background-color: #fff;
