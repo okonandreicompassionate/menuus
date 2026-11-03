@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Clock3, LoaderCircle, MapPin, Minus, Plus, Search, ShoppingBag, X } from 'lucide-react';
-import QRCode from 'qrcode';
 import { StorageService } from '../services/storage';
 import { Category, MenuItem, Restaurant } from '../types';
 import { Menu360AdireBand, Menu360FoodIcon, Menu360Logo, Menu360Progress } from '../components/Menu360Brand';
@@ -10,7 +9,6 @@ type SubmittedOrder = {
   id: string;
   whatsappUrl: string;
   demo: boolean;
-  staffViewToken?: string;
   staffCode?: string;
 };
 
@@ -27,6 +25,7 @@ export const StorefrontPage: React.FC = () => {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [customerNote, setCustomerNote] = useState('');
   const [fulfillment, setFulfillment] = useState<'pickup' | 'delivery' | 'dine-in'>('pickup');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -76,15 +75,16 @@ export const StorefrontPage: React.FC = () => {
   const cartItemCount = cartItems.reduce((sum, item) => sum + cart[item.id], 0);
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * cart[item.id], 0);
   const whatsappPhone = restaurant?.whatsappNumber.replace(/\D/g, '') || '';
-  const whatsappOrderLines = restaurant && whatsappOrderingEnabled && whatsappPhone.length >= 7
+  const whatsappOrderLines = fulfillment !== 'dine-in' && restaurant && whatsappOrderingEnabled && whatsappPhone.length >= 7
     && whatsappPhone.length <= 15 && cartItems.length > 0 && orderReference
     && customerName.trim()
     && (fulfillment !== 'delivery' || deliveryAddress.trim())
     ? [
       `Hello ${restaurant.name}, I'd like to send an order request.`,
       `Order reference: ${orderReference}`,
-      `Fulfilment: ${fulfillment === 'dine-in' ? 'Dine-in' : fulfillment === 'pickup' ? 'Pickup' : 'Delivery'}`,
+      `Fulfilment: ${fulfillment === 'pickup' ? 'Pickup' : 'Delivery'}`,
       `Name: ${customerName.trim()}`,
+      `Customer WhatsApp: ${customerPhone.trim()}`,
       ...(fulfillment === 'delivery' ? [`Delivery address: ${deliveryAddress.trim()}`] : []),
       '',
       ...cartItems.map(item => `${cart[item.id]} × ${item.name} — ${restaurant.currency}${(item.price * cart[item.id]).toLocaleString()}`),
@@ -123,13 +123,15 @@ export const StorefrontPage: React.FC = () => {
       setOrderError('Restaurant details are not available. Refresh the menu and try again.');
     } else if (cartItems.length === 0) {
       setOrderError('Add at least one available dish to your order.');
-    } else if (!whatsappOrderingEnabled) {
+    } else if (fulfillment !== 'dine-in' && !whatsappOrderingEnabled) {
       setOrderError('WhatsApp order requests are temporarily unavailable.');
     } else if (!customerName.trim()) {
       setOrderError('Enter your name so the restaurant knows who the request is from.');
+    } else if (fulfillment !== 'dine-in' && !/^\+?[0-9\s()-]{7,20}$/.test(customerPhone.trim())) {
+      setOrderError('Enter a valid phone number with country code so the restaurant can contact you.');
     } else if (fulfillment === 'delivery' && !deliveryAddress.trim()) {
       setOrderError('Enter a delivery address or choose another option.');
-    } else if (!whatsappOrderUrl) {
+    } else if (fulfillment !== 'dine-in' && !whatsappOrderUrl) {
       setOrderError('This restaurant cannot receive WhatsApp orders right now.');
     } else if (restaurant.slug === 'the-pepper-house') {
       setOrderError('');
@@ -139,32 +141,26 @@ export const StorefrontPage: React.FC = () => {
     } else {
       setOrderError('');
       setIsSubmittingOrder(true);
-      const whatsappWindow = window.open('about:blank', '_blank');
+      const whatsappWindow = fulfillment === 'dine-in' ? null : window.open('about:blank', '_blank');
       try {
         const submission = await StorageService.submitOrder({
           restaurantId: restaurant.id,
           customerName: customerName.trim(),
+          ...(fulfillment !== 'dine-in' ? { customerPhone: customerPhone.trim() } : {}),
           deliveryPreference: fulfillment,
           ...(fulfillment === 'delivery' ? { deliveryAddress: deliveryAddress.trim() } : {}),
           specialInstructions: customerNote.trim(),
           items: cartItems.map(item => ({ menuItemId: item.id, quantity: cart[item.id] })),
         });
         const orderNumber = `M360-${submission.order.id.slice(0, 8).toUpperCase()}`;
-        const savedOrderWhatsappUrl = whatsappOrderUrl.replace(
+        const savedOrderWhatsappUrl = fulfillment === 'dine-in' ? '' : whatsappOrderUrl.replace(
           encodeURIComponent(orderReference),
           encodeURIComponent(orderNumber),
         );
-        const staffCodeWhatsappUrl = submission.staffCode
-          ? savedOrderWhatsappUrl.replace(
-            encodeURIComponent(`Total: ${restaurant.currency}${cartTotal.toLocaleString()}`),
-            encodeURIComponent(`Staff code: ${submission.staffCode}\nTotal: ${restaurant.currency}${cartTotal.toLocaleString()}`),
-          )
-          : savedOrderWhatsappUrl;
         setSubmittedOrder({
           id: orderNumber,
-          whatsappUrl: staffCodeWhatsappUrl,
+          whatsappUrl: savedOrderWhatsappUrl,
           demo: false,
-          staffViewToken: submission.staffViewToken,
           staffCode: submission.staffCode,
         });
         setCart({});
@@ -436,13 +432,30 @@ export const StorefrontPage: React.FC = () => {
             <p className="mt-1 text-xs leading-5 text-stone-600">
               {restaurant.slug === 'the-pepper-house'
                 ? 'This sample lets you preview the order form. It will not contact a restaurant or save an order.'
-                : 'Submitting saves it to the restaurant’s Orders page. WhatsApp will also open so you can message the staff directly.'}
+                : fulfillment === 'dine-in'
+                  ? 'Your order will appear in the restaurant’s Orders page. Show staff the short code after you submit.'
+                  : 'We’ll save your request and open WhatsApp so the restaurant can follow up with you.'}
             </p>
 
             <label className="mt-5 block text-xs font-semibold text-stone-700">
               Your name <span className="font-normal text-stone-500">(required)</span>
               <input value={customerName} onChange={event => setCustomerName(event.target.value)} maxLength={100} required className="mt-1.5 w-full rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm text-stone-900 outline-none focus:border-[#718369] focus:ring-4 focus:ring-[#718369]/10" placeholder="How should the restaurant address you?" />
             </label>
+            {fulfillment !== 'dine-in' && (
+              <label className="mt-3 block text-xs font-semibold text-stone-700">
+                WhatsApp number <span className="font-normal text-stone-500">(include country code)</span>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={event => setCustomerPhone(event.target.value)}
+                  maxLength={20}
+                  required
+                  autoComplete="tel"
+                  className="mt-1.5 w-full rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm text-stone-900 outline-none focus:border-[#718369] focus:ring-4 focus:ring-[#718369]/10"
+                  placeholder="+234 801 234 5678"
+                />
+              </label>
+            )}
             <fieldset className="mt-4">
               <legend className="text-xs font-semibold text-stone-700">Where are you ordering from?</legend>
               <div className="mt-2 grid grid-cols-3 gap-2">
@@ -476,7 +489,9 @@ export const StorefrontPage: React.FC = () => {
                 ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Sending request…</>
                 : restaurant.slug === 'the-pepper-house'
                   ? <>Preview demo order <ShoppingBag className="h-4 w-4" /></>
-                  : <>Send request &amp; open WhatsApp <ShoppingBag className="h-4 w-4" /></>}
+                  : fulfillment === 'dine-in'
+                    ? <>Send order to staff <ShoppingBag className="h-4 w-4" /></>
+                    : <>Send request &amp; open WhatsApp <ShoppingBag className="h-4 w-4" /></>}
             </button>
           </section>
         </div>
@@ -488,19 +503,22 @@ export const StorefrontPage: React.FC = () => {
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#008751]" />
             <div className="min-w-0 flex-1">
               <p className="font-bold text-[#0B2E1F]">
-                {submittedOrder.demo ? 'Demo only — no order was sent' : `Order received · ${submittedOrder.id}`}
+                {submittedOrder.demo ? 'Demo only — no order was sent' : submittedOrder.staffCode ? 'Order ready' : `Order received · ${submittedOrder.id}`}
               </p>
               <p className="mt-1 text-sm leading-5 text-stone-600">
                 {submittedOrder.demo
                   ? 'This sample menu does not contact a real restaurant.'
-                  : submittedOrder.staffViewToken
-                    ? 'Show staff this QR or read them the 8-character code. They can open your order on their phone or enter the code in their dashboard.'
-                    : 'Your request is on the restaurant’s Orders page. Send the message in WhatsApp to alert staff.'}
+                  : submittedOrder.staffCode
+                    ? 'Your order is saved. Give this code to a staff member so they can find your items.'
+                    : 'Your request is on the restaurant’s Orders page. Send the WhatsApp message to alert staff.'}
               </p>
-              {!submittedOrder.demo && submittedOrder.staffViewToken && (
-                <DineInOrderTicket orderNumber={submittedOrder.id} token={submittedOrder.staffViewToken} code={submittedOrder.staffCode} />
+              {!submittedOrder.demo && submittedOrder.staffCode && (
+                <div className="mt-4 rounded-xl border border-[#E3DCC8] bg-[#FBF6EA] p-5 text-center">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#4B5D52]">Give this code to staff</p>
+                  <p className="mt-2 font-mono text-4xl font-black tracking-[0.22em] text-[#0B2E1F]">{submittedOrder.staffCode}</p>
+                </div>
               )}
-              {!submittedOrder.demo && (
+              {!submittedOrder.demo && submittedOrder.whatsappUrl && (
                 <a href={submittedOrder.whatsappUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-[#008751] px-4 py-2 text-sm font-semibold text-white hover:bg-[#006C40]">
                   Open WhatsApp
                 </a>
@@ -580,46 +598,6 @@ function MenuCard({ item, category, currency, quantity, onAdd }: {
   );
 }
 
-function DineInOrderTicket({ orderNumber, token, code }: { orderNumber: string; token: string; code?: string }) {
-  const [qrCode, setQrCode] = useState('');
-  const [qrError, setQrError] = useState('');
-  const staffOrderUrl = `${window.location.origin}/staff/order/${encodeURIComponent(token)}`;
-
-  useEffect(() => {
-    let active = true;
-    QRCode.toDataURL(staffOrderUrl, {
-      width: 480,
-      margin: 2,
-      errorCorrectionLevel: 'M',
-      color: { dark: '#0B2E1F', light: '#FFFFFF' },
-    }).then(dataUrl => {
-      if (active) setQrCode(dataUrl);
-    }).catch(error => {
-      if (active) setQrError(error instanceof Error ? error.message : 'Could not create the staff QR ticket.');
-    });
-    return () => { active = false; };
-  }, [staffOrderUrl]);
-
-  return (
-    <div className="mt-4 flex flex-col items-center rounded-xl border border-[#E3DCC8] bg-[#FBF6EA] p-4 text-center">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#4B5D52]">Show staff this order ticket</p>
-      <p className="mt-1 text-2xl font-extrabold tracking-wider text-[#0B2E1F]">{orderNumber}</p>
-      {code && (
-        <p className="mt-2 rounded-lg border border-[#E3DCC8] bg-white px-4 py-2 font-mono text-lg font-bold tracking-[0.2em] text-[#0B2E1F]">
-          {code}
-        </p>
-      )}
-      {qrCode ? (
-        <img src={qrCode} alt={`QR ticket for order ${orderNumber}`} className="mt-3 h-48 w-48 rounded-lg bg-white p-2" />
-      ) : qrError ? (
-        <p role="alert" className="mt-3 text-xs text-[#D9480F]">QR ticket could not be generated: {qrError}</p>
-      ) : (
-        <div className="mt-3 flex h-48 w-48 items-center justify-center rounded-lg bg-white text-sm text-stone-500">Preparing QR ticket…</div>
-      )}
-      <p className="mt-2 max-w-xs text-xs leading-5 text-stone-600">Staff can scan the QR or type the 8-character code into Orders on their dashboard. Keep this page open until they’ve checked it.</p>
-    </div>
-  );
-}
 
 function trackStorefrontVisit(slug: string) {
   const visitKey = `menu360:visit:${slug}`;

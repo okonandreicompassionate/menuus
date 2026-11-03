@@ -145,6 +145,11 @@ export const StorageService = {
     return apiRequest(`/api/staff-order/code/${encodeURIComponent(code)}`);
   },
 
+  async getPendingOrderCount(): Promise<number> {
+    const result = await apiRequest<{ count: number }>('/api/orders/pending-count');
+    return result.count;
+  },
+
   async updateOrderStatus(orderId: string, status: 'pending' | 'completed' | 'cancelled'): Promise<void> {
     const result = await apiRequest<Order>(`/api/orders/${encodeURIComponent(orderId)}`, 'PATCH', { status });
     const orders = readCache<Order>(STORAGE_KEYS.ORDERS).map(order => order.id === result.id ? result : order);

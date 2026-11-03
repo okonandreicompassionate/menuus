@@ -17,6 +17,7 @@ export const DashboardMenu: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'sold-out'>('all');
   const [updatingItemId, setUpdatingItemId] = useState('');
+  const [isSavingItem, setIsSavingItem] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -54,14 +55,18 @@ export const DashboardMenu: React.FC = () => {
 
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !price || !categoryId) return;
+    if (!name.trim() || price === '' || !Number.isFinite(Number(price)) || Number(price) < 0 || !categoryId) {
+      setError('Enter a dish name, choose a category and provide a valid price.');
+      return;
+    }
     setError('');
+    setIsSavingItem(true);
 
     const newItem: MenuItem = {
       id: editingItem?.id || '',
       restaurantId: currentRestaurant.id,
       categoryId,
-      name,
+      name: name.trim(),
       description,
       price: parseFloat(price) || 0,
       image: image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
@@ -71,9 +76,12 @@ export const DashboardMenu: React.FC = () => {
     try {
       await StorageService.saveMenuItem(newItem);
       setMenuItems(StorageService.getMenuItems(currentRestaurant.id));
+      setStatusMessage(`${newItem.name} ${editingItem ? 'updated' : 'added'} to your menu.`);
       setIsModalOpen(false);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save this menu item.');
+    } finally {
+      setIsSavingItem(false);
     }
   };
 
@@ -121,11 +129,11 @@ export const DashboardMenu: React.FC = () => {
   const soldOutCount = menuItems.length - availableCount;
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-7xl space-y-6">
       <Menu360AdireBand />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Menu Management</h2>
+          <h2 className="text-2xl font-extrabold text-white sm:text-[28px]">Menu items</h2>
           <p className="text-sm text-stone-400">Add, edit and organize food items for your digital storefront.</p>
         </div>
         <button
@@ -216,7 +224,8 @@ export const DashboardMenu: React.FC = () => {
           <button
             type="button"
             onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setAvailabilityFilter('all'); }}
-            className="mt-5 rounded-full border border-stone-800 px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100"
+            disabled={!searchQuery && selectedCategory === 'all' && availabilityFilter === 'all'}
+            className="mt-5 rounded-full border border-stone-800 px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Clear filters
           </button>
@@ -282,6 +291,7 @@ export const DashboardMenu: React.FC = () => {
                     type="button"
                     onClick={() => handleOpenEditModal(item)}
                     aria-label={`Edit ${item.name}`}
+                    title={`Edit ${item.name}`}
                     className="flex h-11 w-11 items-center justify-center rounded-full bg-stone-800 text-stone-700 transition-colors hover:bg-stone-700 hover:text-white"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -290,6 +300,7 @@ export const DashboardMenu: React.FC = () => {
                     type="button"
                     onClick={() => handleDeleteItem(item.id)}
                     aria-label={`Delete ${item.name}`}
+                    title={`Delete ${item.name}`}
                     className="flex h-11 w-11 items-center justify-center rounded-full bg-red-500/10 text-red-600 transition-colors hover:bg-red-500/20"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -319,6 +330,7 @@ export const DashboardMenu: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveItem} className="space-y-4">
+              {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-1">Item Name</label>
                 <input
@@ -351,6 +363,7 @@ export const DashboardMenu: React.FC = () => {
                     type="number"
                     required
                     min="0"
+                    step="any"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="4500"
@@ -388,16 +401,18 @@ export const DashboardMenu: React.FC = () => {
               <div className="pt-4 flex items-center justify-end gap-3">
                 <button
                   type="button"
+                  disabled={isSavingItem}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-stone-800 text-stone-300 font-semibold text-sm hover:bg-stone-700"
+                  className="px-5 py-2.5 rounded-xl bg-stone-800 text-stone-300 font-semibold text-sm hover:bg-stone-700 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-orange-600 text-white font-semibold text-sm hover:bg-orange-700 shadow-lg shadow-orange-600/25"
+                  disabled={isSavingItem}
+                  className="min-w-32 rounded-xl bg-orange-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-600/25 hover:bg-orange-700 disabled:cursor-wait disabled:opacity-60"
                 >
-                  Save Item
+                  {isSavingItem ? 'Saving…' : editingItem ? 'Save changes' : 'Add dish'}
                 </button>
               </div>
             </form>

@@ -24,11 +24,11 @@ export const DashboardOverview: React.FC = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
-      <section className="dashboard-welcome overflow-hidden rounded-[1.75rem] border border-stone-800 p-5 sm:p-8 lg:p-10">
-        <Menu360AdireBand className="mb-6" />
-        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-          <div className="max-w-2xl space-y-3">
+    <div className="mx-auto max-w-7xl space-y-5">
+      <section className="dashboard-welcome overflow-hidden rounded-[1.5rem] border border-stone-800 p-4 sm:p-6 lg:p-7">
+        <Menu360AdireBand className="mb-4" />
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+          <div className="max-w-2xl space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-500">
               {planLabel} plan · Restaurant menu
             </p>
@@ -56,10 +56,10 @@ export const DashboardOverview: React.FC = () => {
             </Link>
           </div>
         </div>
-        <p className="mt-5 max-w-2xl text-xs leading-5 text-stone-500">{nextAction.detail}</p>
+        <p className="mt-4 max-w-2xl text-xs leading-5 text-stone-500">{nextAction.detail}</p>
       </section>
 
-      <section aria-label="Restaurant overview" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <section aria-label="Restaurant overview" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <OverviewStat label="Menu items" value={menuItems.length} detail="Dishes on your menu" icon={MenuIcon} />
         <OverviewStat label="Categories" value={categories.length} detail="Menu sections" icon={FolderKanban} />
         <OverviewStat label="Available" value={availableItems} detail="Ready to be viewed" icon={Check} />
@@ -67,8 +67,8 @@ export const DashboardOverview: React.FC = () => {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:gap-6">
-        <div className="rounded-[1.5rem] border border-stone-800 bg-stone-900 p-5 sm:p-8">
-          <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="rounded-[1.5rem] border border-stone-800 bg-stone-900 p-4 sm:p-6">
+          <div className="mb-4 flex items-start justify-between gap-4">
             <div>
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">Getting started</p>
               <h3 className="text-2xl font-semibold text-white">Set up your menu</h3>
@@ -76,12 +76,12 @@ export const DashboardOverview: React.FC = () => {
             </div>
             <UtensilsCrossed className="mt-1 h-5 w-5 shrink-0 text-orange-500" />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {setupSteps.map(({ label, complete, to, icon: Icon }) => (
               <Link
                 key={label}
                 to={to}
-                className="flex items-center gap-3 rounded-xl border border-stone-800/70 bg-stone-800/30 px-4 py-3 transition hover:bg-stone-800/60"
+                className="flex items-center gap-3 rounded-xl border border-stone-800/70 bg-stone-800/30 px-3 py-2.5 transition hover:bg-stone-800/60"
               >
                 <span className={`flex h-8 w-8 items-center justify-center rounded-full ${
                   complete ? 'bg-emerald-500/10 text-emerald-600' : 'bg-stone-800 text-stone-500'
@@ -97,7 +97,7 @@ export const DashboardOverview: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-[1.5rem] border border-stone-800 bg-stone-900 p-5 sm:p-8">
+        <div className="flex flex-col justify-between rounded-[1.5rem] border border-stone-800 bg-stone-900 p-4 sm:p-6">
           <div>
             <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-600/10 text-orange-500">
               <QrCode className="h-5 w-5" />
@@ -105,7 +105,7 @@ export const DashboardOverview: React.FC = () => {
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-orange-500">Share your menu</p>
             <h3 className="text-2xl font-semibold text-white">One link, ready anywhere.</h3>
             <p className="mt-3 text-sm leading-6 text-stone-400">
-              Guests can build a basket and send their order to your restaurant on WhatsApp. Confirm availability and payment directly with them.
+              Share your QR or link. Dine-in guests show staff a short order code; pickup and delivery requests arrive with a WhatsApp contact option.
             </p>
           </div>
           <Link

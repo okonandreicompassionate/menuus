@@ -99,6 +99,7 @@ export interface Order {
 export interface OrderSubmission {
   restaurantId: string;
   customerName: string;
+  customerPhone?: string;
   deliveryPreference: Order['deliveryPreference'];
   deliveryAddress?: string;
   specialInstructions?: string;
@@ -107,7 +108,6 @@ export interface OrderSubmission {
 
 export interface OrderSubmissionResult {
   order: Order;
-  staffViewToken?: string;
   staffCode?: string;
 }
 

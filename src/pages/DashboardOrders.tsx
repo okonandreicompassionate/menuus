@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ShoppingBag, CheckCircle, Clock, XCircle, Phone, MapPin, RefreshCw, Search, LoaderCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Phone, MapPin, RefreshCw, Search, LoaderCircle, MessageCircle } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { Order, StaffOrderView } from '../types';
 import { Menu360AdireBand, Menu360FoodIcon } from '../components/Menu360Brand';
@@ -19,11 +19,16 @@ export const DashboardOrders: React.FC = () => {
   const [isLookingUpCode, setIsLookingUpCode] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
   const [orderSearch, setOrderSearch] = useState('');
+  const [updatingOrderId, setUpdatingOrderId] = useState('');
   const knownOrderIds = useRef(new Set(orders.map(order => order.id)));
-  const visibleOrders = orders.filter(order => {
+  const sortedOrders = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const visibleOrders = sortedOrders.filter(order => {
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const query = orderSearch.trim().toLowerCase();
-    const matchesSearch = !query || order.customerName.toLowerCase().includes(query) || order.id.toLowerCase().includes(query);
+    const matchesSearch = !query || order.customerName.toLowerCase().includes(query)
+      || order.id.toLowerCase().includes(query)
+      || (order.customerPhone || '').toLowerCase().includes(query)
+      || (order.deliveryAddress || '').toLowerCase().includes(query);
     return matchesStatus && matchesSearch;
   });
 
@@ -57,11 +62,14 @@ export const DashboardOrders: React.FC = () => {
 
   const handleUpdateStatus = async (orderId: string, status: 'pending' | 'completed' | 'cancelled') => {
     setError('');
+    setUpdatingOrderId(orderId);
     try {
       await StorageService.updateOrderStatus(orderId, status);
       setOrders(StorageService.getOrders(currentRestaurant.id));
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'Could not update order status.');
+    } finally {
+      setUpdatingOrderId('');
     }
   };
 
@@ -86,19 +94,22 @@ export const DashboardOrders: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="mx-auto max-w-7xl space-y-6">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Incoming orders</h2>
-        <p className="text-sm text-stone-400">New requests appear here automatically while this page is open. Keep WhatsApp open for instant alerts.</p>
-        <p className="mt-2 flex items-center gap-2 text-xs text-stone-500"><RefreshCw className="h-3 w-3" /> Last checked {lastChecked.toLocaleTimeString()}</p>
+        <h2 className="text-2xl font-extrabold text-white sm:text-[28px]">Incoming orders</h2>
+        <p className="mt-1 max-w-4xl text-sm text-stone-400">Newest requests appear first and refresh automatically. Give dine-in guests their staff code; contact pickup and delivery guests directly from their order.</p>
+        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500">
+          <span className="font-semibold text-orange-300">{orders.filter(order => order.status === 'pending').length} pending {orders.filter(order => order.status === 'pending').length === 1 ? 'order' : 'orders'}</span>
+          <span className="inline-flex items-center gap-2"><RefreshCw className="h-3 w-3" /> Last checked {lastChecked.toLocaleTimeString()}</span>
+        </p>
       </div>
 
       {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
 
-      <section className="rounded-2xl border border-stone-800 bg-stone-900 p-5 sm:p-6">
-        <h3 className="flex items-center gap-2 text-base font-bold text-white"><Search className="h-4 w-4 text-emerald-400" /> Find an order by staff code</h3>
-        <p className="mt-1 text-sm text-stone-400">Enter the 8-character code shown on the guest’s dine-in ticket to open their order.</p>
-        <form onSubmit={event => void handleStaffCodeLookup(event)} className="mt-4 flex flex-col gap-3 sm:flex-row">
+      <section className="dashboard-order-code rounded-2xl border border-stone-800 bg-stone-900 p-4 sm:p-5">
+        <h3 className="flex items-center gap-2 text-base font-bold text-white"><Search className="h-4 w-4 text-emerald-400" /> Find a dine-in order by code</h3>
+        <p className="mt-1 text-sm text-stone-400">Ask the guest for their 8-character code and enter it here to see their items.</p>
+        <form onSubmit={event => void handleStaffCodeLookup(event)} className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input
             value={staffCode}
             onChange={event => setStaffCode(event.target.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '').slice(0, 8))}
@@ -141,7 +152,9 @@ export const DashboardOrders: React.FC = () => {
         )}
       </section>
 
-      {orders.length === 0 ? (
+      {visibleOrders.length === 0 && (statusFilter !== 'all' || orderSearch.trim()) ? (
+        <p className="rounded-xl border border-stone-800 bg-stone-900 p-5 text-sm text-stone-400">No orders match this search and status.</p>
+      ) : orders.length === 0 ? (
         <div className="overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 text-center text-stone-400">
           <Menu360AdireBand />
           <div className="px-6 py-14">
@@ -151,7 +164,7 @@ export const DashboardOrders: React.FC = () => {
           </div>
         </div>
       ) : (
-        <section className="space-y-4">
+        <section className="space-y-3">
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
               value={orderSearch}
@@ -169,12 +182,11 @@ export const DashboardOrders: React.FC = () => {
               ))}
             </div>
           </div>
-          {visibleOrders.length === 0 && <p className="rounded-xl border border-stone-800 bg-stone-900 p-5 text-sm text-stone-400">No orders match this search and status.</p>}
           {visibleOrders.map(order => (
-            <div key={order.id} className={`bg-stone-900 border rounded-3xl p-6 sm:p-8 space-y-6 ${
+            <div key={order.id} className={`dashboard-order-card bg-stone-900 border rounded-3xl p-4 sm:p-5 space-y-4 ${
               newOrderIds.includes(order.id) ? 'border-emerald-500/60' : 'border-stone-800'
             }`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-stone-800">
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
                     <h3 className="text-lg font-bold text-white">{order.customerName}</h3>
@@ -196,33 +208,48 @@ export const DashboardOrders: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleUpdateStatus(order.id, 'completed')}
-                    className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                      order.status === 'completed' ? 'bg-emerald-600 text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
-                    }`}
-                  >
-                    <CheckCircle className="w-4 h-4" /> Complete
-                  </button>
-                  <button
-                    onClick={() => handleUpdateStatus(order.id, 'cancelled')}
-                    className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                      order.status === 'cancelled' ? 'bg-red-600 text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
-                    }`}
-                  >
-                    <XCircle className="w-4 h-4" /> Cancel
-                  </button>
-                </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {order.customerPhone && order.deliveryPreference !== 'dine-in' && (
+                        <a
+                          href={getCustomerWhatsappUrl(order, currentRestaurant.currency)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-500/50 bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                        >
+                          <MessageCircle className="h-4 w-4" /> Text customer
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        disabled={order.status !== 'pending' || updatingOrderId === order.id}
+                        onClick={() => handleUpdateStatus(order.id, 'completed')}
+                        className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 ${
+                          order.status === 'completed' ? 'border-emerald-500 bg-emerald-600 text-white' : 'border-emerald-600 bg-emerald-950/60 text-emerald-200 hover:bg-emerald-800'
+                        }`}
+                      >
+                        {updatingOrderId === order.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                        {updatingOrderId === order.id ? 'Saving…' : 'Complete'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={order.status !== 'pending' || updatingOrderId === order.id}
+                        onClick={() => handleUpdateStatus(order.id, 'cancelled')}
+                        className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-60 ${
+                          order.status === 'cancelled' ? 'border-red-500 bg-red-600 text-white' : 'border-red-600 bg-red-950/60 text-red-200 hover:bg-red-800'
+                        }`}
+                      >
+                        <XCircle className="h-4 w-4" /> Cancel
+                      </button>
+                    </div>
               </div>
 
               {/* Order details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400">Order Items</h4>
-                  <ul className="space-y-2">
+                  <ul className="space-y-1.5">
                     {order.items.map((item, idx) => (
-                      <li key={idx} className="flex items-center justify-between bg-stone-800/50 p-3 rounded-xl border border-stone-800">
+                      <li key={idx} className="flex items-center justify-between bg-stone-800/50 px-3 py-2.5 rounded-xl border border-stone-800">
                         <span className="text-white font-medium">{item.quantity}x {item.name}</span>
                         <span className="text-orange-400 font-bold">₦{(item.price * item.quantity).toLocaleString()}</span>
                       </li>
@@ -230,7 +257,7 @@ export const DashboardOrders: React.FC = () => {
                   </ul>
                 </div>
 
-                <div className="space-y-4 bg-stone-800/30 p-6 rounded-2xl border border-stone-800">
+                <div className="dashboard-order-info space-y-3 bg-stone-800/30 p-4 sm:p-5 rounded-2xl border border-stone-800">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400">Order & Customer Info</h4>
                   <div className="space-y-2 text-stone-300 text-xs">
                     <p className="flex items-center gap-2">
@@ -238,10 +265,13 @@ export const DashboardOrders: React.FC = () => {
                       <span className="text-white font-bold">{order.deliveryPreference === 'dine-in' ? 'Dine in' : order.deliveryPreference === 'pickup' ? 'Pickup' : 'Delivery'}</span>
                     </p>
                     {order.customerPhone && (
-                      <p className="flex items-center gap-2">
+                      <a href={`tel:${order.customerPhone}`} className="flex w-fit items-center gap-2 text-stone-300 underline decoration-stone-500 underline-offset-2 hover:text-white">
                         <Phone className="w-3.5 h-3.5 text-orange-500" />
                         <span>{order.customerPhone}</span>
-                      </p>
+                      </a>
+                    )}
+                    {order.deliveryPreference !== 'dine-in' && !order.customerPhone && (
+                      <p className="text-amber-300">No contact number was provided for this order.</p>
                     )}
                     {order.deliveryAddress && (
                       <p className="flex items-start gap-2">
@@ -268,3 +298,15 @@ export const DashboardOrders: React.FC = () => {
     </div>
   );
 };
+
+function getCustomerWhatsappUrl(order: Order, currency: string) {
+  const phone = (order.customerPhone || '').replace(/\D/g, '');
+  const message = [
+    `Hello ${order.customerName}, this is the restaurant following up on your ${order.deliveryPreference} order ${order.id}.`,
+    `Items: ${order.items.map(item => `${item.quantity} × ${item.name}`).join(', ')}`,
+    `Order total: ${currency}${order.totalAmount.toLocaleString()}`,
+    ...(order.deliveryAddress ? [`Delivery address: ${order.deliveryAddress}`] : []),
+    'Please reply so we can confirm availability and arrange your order.',
+  ].join('\n');
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}

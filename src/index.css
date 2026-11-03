@@ -1029,6 +1029,65 @@ select {
   color: var(--m360-green) !important;
 }
 
+[data-dashboard] aside {
+  z-index: 40;
+  background-color: var(--m360-forest) !important;
+  border-color: #244735 !important;
+}
+
+[data-dashboard] aside .text-white,
+[data-dashboard] aside .text-stone-100 {
+  color: var(--m360-cream) !important;
+}
+
+[data-dashboard] aside .text-stone-300,
+[data-dashboard] aside .text-stone-400,
+[data-dashboard] aside .text-stone-500 {
+  color: #bfd6c8 !important;
+}
+
+[data-dashboard] aside nav a.bg-orange-600,
+[data-dashboard] aside nav a.bg-orange-600:hover {
+  background-color: var(--m360-green) !important;
+  color: #fff !important;
+}
+
+[data-dashboard] aside .menu360-active-store-card {
+  border-color: rgb(251 246 234 / 0.15) !important;
+  background-color: rgb(251 246 234 / 0.09) !important;
+}
+
+[data-dashboard] main {
+  padding: 1rem;
+}
+
+[data-dashboard] .dashboard-order-card {
+  border-color: #e8dfc9;
+  background-color: #fff;
+}
+
+[data-dashboard] .dashboard-order-info {
+  border-color: #e8dfc9;
+  background-color: #f5efdf;
+}
+
+[data-dashboard] .dashboard-order-code {
+  border-color: #e8dfc9;
+  background-color: #fff;
+}
+
+@media (min-width: 640px) {
+  [data-dashboard] main {
+    padding: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-dashboard] main {
+    padding: 1.75rem;
+  }
+}
+
 .menu360-progress-wrap {
   display: grid;
   gap: 12px;

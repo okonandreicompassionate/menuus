@@ -11,7 +11,9 @@ import {
   LogOut,
   ExternalLink,
   Menu as HamburgerMenu,
-  X
+  X,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { AuthService } from '../services/auth';
@@ -24,10 +26,17 @@ export const DashboardLayout: React.FC = () => {
   const [currentUser, setCurrentUser] = useState(StorageService.getCurrentUser());
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [sessionError, setSessionError] = useState('');
+  const [pendingOrderCount, setPendingOrderCount] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('menu360:sidebar-collapsed') === 'true');
   const restaurants = StorageService.getRestaurants();
   const currentRestaurant: Restaurant = restaurants.find(r => r.id === currentUser?.restaurantId) || restaurants[0];
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navCollapsed = sidebarCollapsed && !mobileMenuOpen;
+
+  useEffect(() => {
+    localStorage.setItem('menu360:sidebar-collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +59,26 @@ export const DashboardLayout: React.FC = () => {
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    let active = true;
+    const refreshPendingCount = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const count = await StorageService.getPendingOrderCount();
+        if (active) setPendingOrderCount(count);
+      } catch (error) {
+        if (active) console.error('Could not refresh the pending order count.', error);
+      }
+    };
+    void refreshPendingCount();
+    const timer = window.setInterval(() => void refreshPendingCount(), 15000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [currentUser?.restaurantId]);
 
   const handleLogout = async () => {
     try {
@@ -109,44 +138,55 @@ export const DashboardLayout: React.FC = () => {
       <aside
         className={`${
           mobileMenuOpen ? 'flex' : 'hidden'
-        } md:flex flex-col w-full md:w-72 bg-stone-900 border-r border-stone-800 shrink-0 fixed md:static inset-y-0 z-40 pt-16 md:pt-0`}
+        } md:flex flex-col ${sidebarCollapsed ? 'md:w-[76px]' : 'md:w-72'} w-full bg-stone-900 border-r border-stone-800 shrink-0 fixed md:sticky md:top-0 md:h-screen md:overflow-hidden inset-y-0 z-40 pt-16 md:pt-0 transition-[width] duration-200`}
       >
-        <div className="p-6 border-b border-stone-800 hidden md:flex items-center gap-3">
+        <div className={`border-b border-stone-800 hidden md:flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-4' : 'justify-between p-5'}`}>
           <Link to="/" aria-label="menu360° home">
-            <Menu360Logo dark markSize={42} />
+            {sidebarCollapsed ? <Menu360Mark size={38} dark /> : <Menu360Logo dark markSize={40} />}
           </Link>
+          {!sidebarCollapsed && (
+            <button type="button" onClick={() => setSidebarCollapsed(true)} aria-label="Collapse navigation" title="Collapse navigation" className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-300 transition hover:bg-white/10 hover:text-white">
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          )}
         </div>
+        {sidebarCollapsed && (
+          <button type="button" onClick={() => setSidebarCollapsed(false)} aria-label="Expand navigation" title="Expand navigation" className="mx-auto mt-3 hidden h-9 w-9 items-center justify-center rounded-lg text-stone-300 transition hover:bg-white/10 hover:text-white md:flex">
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
+        )}
 
         {/* Restaurant selector info */}
-        <div className="menu360-active-store-card p-4 mx-4 mt-6 rounded-2xl border border-stone-700/50 flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
+        <div className={`menu360-active-store-card mx-3 mt-4 flex items-center rounded-2xl border border-stone-700/50 ${navCollapsed ? 'justify-center p-2' : 'justify-between gap-2 p-3'}`}>
+          <div className={`flex min-w-0 items-center ${navCollapsed ? 'justify-center' : 'gap-3'}`}>
             {currentRestaurant.logo ? (
               <img
                 src={currentRestaurant.logo}
                 alt={currentRestaurant.name}
-                className="w-10 h-10 rounded-xl object-cover border border-stone-700 shrink-0"
+                className="h-10 w-10 rounded-xl border border-stone-700 object-cover shrink-0"
                 referrerPolicy="no-referrer"
+                title={currentRestaurant.name}
               />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-700"><Menu360Mark size={36} dark /></div>
+              <div title={currentRestaurant.name} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-700"><Menu360Mark size={36} dark /></div>
             )}
-            <div className="truncate">
+            {!navCollapsed && <div className="min-w-0 truncate">
               <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">Active Store</p>
               <p className="text-sm font-bold text-white truncate">{currentRestaurant.name}</p>
-            </div>
+            </div>}
           </div>
-          <Link
+          {!navCollapsed && <Link
             to={`/store/${currentRestaurant.slug}`}
             target="_blank"
             title="View Storefront"
-            className="p-2 rounded-xl bg-stone-700/60 text-stone-300 hover:text-white hover:bg-stone-700 transition-colors shrink-0"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-700/60 text-stone-300 transition-colors hover:text-white hover:bg-stone-700"
           >
             <ExternalLink className="w-4 h-4" />
-          </Link>
+          </Link>}
         </div>
 
         {/* Nav Links */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
+        <nav className={`flex min-h-0 flex-1 flex-col gap-1 overflow-hidden py-4 ${navCollapsed ? 'px-2' : 'px-3'}`}>
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -154,40 +194,60 @@ export const DashboardLayout: React.FC = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                title={navCollapsed ? item.label : undefined}
+                aria-label={navCollapsed ? item.label : undefined}
+                className={`flex min-h-11 shrink-0 items-center rounded-xl text-sm font-medium transition-all ${
+                  navCollapsed ? 'justify-center px-2' : 'gap-3 px-3'
+                } ${
                   isActive
                     ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/25'
                     : 'text-stone-400 hover:text-white hover:bg-stone-800/60'
                 }`}
               >
-                <item.icon className="w-5 h-5" />
-                <span>{item.label}</span>
+                <span className="relative flex shrink-0">
+                  <item.icon className="w-5 h-5" />
+                  {navCollapsed && item.label === 'Orders' && pendingOrderCount > 0 && (
+                    <span aria-label={`${pendingOrderCount} pending orders`} className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[9px] font-bold leading-none text-white">
+                      {pendingOrderCount > 9 ? '9+' : pendingOrderCount}
+                    </span>
+                  )}
+                </span>
+                {!navCollapsed && <span className="flex min-w-0 flex-1 items-center justify-between gap-2 truncate">
+                  {item.label}
+                  {item.label === 'Orders' && pendingOrderCount > 0 && (
+                    <span aria-label={`${pendingOrderCount} pending orders`} className="inline-flex min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                      {pendingOrderCount > 99 ? '99+' : pendingOrderCount}
+                    </span>
+                  )}
+                </span>}
               </Link>
             );
           })}
         </nav>
 
         {/* Footer actions */}
-        <div className="p-4 border-t border-stone-800 space-y-2">
+        <div className={`shrink-0 border-t border-stone-800 space-y-1 ${navCollapsed ? 'p-2' : 'p-3'}`}>
           <Link
             to="/"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-stone-400 hover:text-white hover:bg-stone-800/60 transition-colors"
+            title={navCollapsed ? 'Back to Home' : undefined}
+            className={`flex min-h-10 items-center rounded-xl text-sm font-medium text-stone-400 transition-colors hover:text-white hover:bg-stone-800/60 ${navCollapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
           >
             <Menu360Mark size={22} dark />
-            <span>Back to Home</span>
+            {!navCollapsed && <span>Back to Home</span>}
           </Link>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+            title={navCollapsed ? 'Sign Out' : undefined}
+            className={`w-full flex min-h-10 items-center rounded-xl text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 ${navCollapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
           >
             <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
+            {!navCollapsed && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-w-0 overflow-y-auto bg-stone-950 p-6 lg:p-10">
+      <main className="min-h-[calc(100vh-64px)] min-w-0 flex-1 overflow-x-hidden bg-stone-950 p-4 sm:p-5 lg:p-7 md:min-h-screen">
         <Outlet />
       </main>
     </div>

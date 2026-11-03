@@ -25,6 +25,7 @@ export const DashboardCategories: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [savingPreset, setSavingPreset] = useState('');
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
   const menuItems = StorageService.getMenuItems(currentRestaurant.id);
   const availableSuggestions = suggestedCategories.filter(suggestion =>
     !categories.some(category => category.name.trim().toLowerCase() === suggestion.name.toLowerCase()),
@@ -44,8 +45,12 @@ export const DashboardCategories: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      setError('Enter a category name.');
+      return;
+    }
     setError('');
+    setIsSavingCategory(true);
 
     const newCat: Category = {
       id: editingCategory?.id || '',
@@ -58,8 +63,11 @@ export const DashboardCategories: React.FC = () => {
       await StorageService.saveCategory(newCat);
       setCategories(StorageService.getCategories(currentRestaurant.id));
       setIsModalOpen(false);
+      setError('');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save this category.');
+    } finally {
+      setIsSavingCategory(false);
     }
   };
 
@@ -197,7 +205,7 @@ export const DashboardCategories: React.FC = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-stone-900 border border-stone-800 rounded-3xl max-w-md w-full p-8 space-y-6">
+          <div className="bg-stone-900 border border-stone-800 rounded-3xl max-w-md w-full p-5 sm:p-7 space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold text-white">
                 {editingCategory ? 'Edit Category' : 'Add New Category'}
@@ -211,12 +219,15 @@ export const DashboardCategories: React.FC = () => {
             </div>
 
             <form onSubmit={handleSave} className="space-y-4">
+              {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-1">Category Name</label>
+                <label htmlFor="category-name" className="mb-1 block text-xs font-bold uppercase tracking-wider text-stone-400">Category Name</label>
                 <input
+                  id="category-name"
                   type="text"
                   required
                   value={name}
+                  maxLength={80}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Swallow & Soup"
                   className="w-full bg-stone-800 border border-stone-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-600"
@@ -226,16 +237,18 @@ export const DashboardCategories: React.FC = () => {
               <div className="pt-4 flex items-center justify-end gap-3">
                 <button
                   type="button"
+                  disabled={isSavingCategory}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-stone-800 text-stone-300 font-semibold text-sm hover:bg-stone-700"
+                  className="px-5 py-2.5 rounded-xl bg-stone-800 text-stone-300 font-semibold text-sm hover:bg-stone-700 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-orange-600 text-white font-semibold text-sm hover:bg-orange-700 shadow-lg shadow-orange-600/25"
+                  disabled={isSavingCategory}
+                  className="min-w-36 rounded-xl bg-orange-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-600/25 hover:bg-orange-700 disabled:cursor-wait disabled:opacity-60"
                 >
-                  Save Category
+                  {isSavingCategory ? 'Saving…' : editingCategory ? 'Save changes' : 'Add category'}
                 </button>
               </div>
             </form>

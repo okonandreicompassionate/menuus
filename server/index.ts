@@ -561,20 +561,42 @@ app.get('/api/dashboard', asyncRoute(async (req, res) => {
     res.status(404).json({ error: 'Restaurant profile not found.' });
     return;
   }
-  const [categoriesResult, menuResult, ordersResult] = await Promise.all([
+  const [categoriesResult, menuResult] = await Promise.all([
     supabase.from('categories').select('*').eq('restaurant_id', restaurant.id).order('sort_order'),
     supabase.from('menu_items').select('*').eq('restaurant_id', restaurant.id).order('name'),
-    supabase.from('orders').select('*').eq('restaurant_id', restaurant.id).order('created_at', { ascending: false }),
   ]);
-  for (const result of [categoriesResult, menuResult, ordersResult]) {
+  for (const result of [categoriesResult, menuResult]) {
     if (result.error) throw result.error;
+  }
+  const orders: Array<ReturnType<typeof mapOrder>> = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('orders').select('*')
+      .eq('restaurant_id', restaurant.id)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + 999);
+    if (error) throw error;
+    const page = data || [];
+    orders.push(...page.map(mapOrder));
+    if (page.length < 1000) break;
   }
   res.json({
     restaurant: mapRestaurant(restaurant),
     categories: (categoriesResult.data || []).map(mapCategory),
     menuItems: (menuResult.data || []).map(mapMenuItem),
-    orders: (ordersResult.data || []).map(mapOrder),
+    orders,
   });
+}));
+
+app.get('/api/orders/pending-count', asyncRoute(async (req, res) => {
+  const profile = await authenticatedProfile(req, res);
+  if (!profile) return;
+  const { count, error } = await supabase.from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('restaurant_id', profile.restaurant.id)
+    .eq('status', 'pending');
+  if (error) throw error;
+  res.json({ count: count || 0 });
 }));
 
 app.get('/api/admin/restaurants', asyncRoute(async (req, res) => {
@@ -949,7 +971,8 @@ app.post('/api/orders', asyncRoute(async (req, res) => {
   const requestedItems = req.body?.items;
   if (!isUuid(restaurantId) || !customerName || !['delivery', 'pickup', 'dine-in'].includes(deliveryPreference)
     || !Array.isArray(requestedItems) || requestedItems.length === 0 || requestedItems.length > 50
-    || (deliveryPreference === 'delivery' && !deliveryAddress)) {
+    || (deliveryPreference === 'delivery' && !deliveryAddress)
+    || (deliveryPreference !== 'dine-in' && (customerPhone.replace(/\D/g, '').length < 7 || customerPhone.replace(/\D/g, '').length > 15))) {
     res.status(400).json({ error: 'Provide valid customer and order details.' });
     return;
   }
@@ -990,7 +1013,6 @@ app.post('/api/orders', asyncRoute(async (req, res) => {
     quantity: itemQuantities.get(item.id)!,
   }));
   const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const staffViewToken = deliveryPreference === 'dine-in' ? randomBytes(32).toString('base64url') : null;
   const staffCode = deliveryPreference === 'dine-in' ? createStaffCode() : null;
   const { data, error } = await supabase.from('orders').insert({
     restaurant_id: restaurantId,
@@ -1002,14 +1024,11 @@ app.post('/api/orders', asyncRoute(async (req, res) => {
     items: orderItems,
     total_amount: totalAmount,
     status: 'pending',
-    staff_access_token_hash: staffViewToken ? hashToken(staffViewToken) : null,
-    staff_access_expires_at: staffViewToken ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
     staff_code_hash: staffCode ? hashToken(staffCode) : null,
   }).select('*').single();
   if (error) throw error;
   res.status(201).json({
     order: mapOrder(data),
-    ...(staffViewToken ? { staffViewToken } : {}),
     ...(staffCode ? { staffCode } : {}),
   });
 }));
