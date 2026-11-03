@@ -81,14 +81,24 @@ create table if not exists public.orders (
   restaurant_id uuid not null references public.restaurants(id) on delete cascade,
   customer_name text not null,
   customer_phone text,
-  delivery_preference text not null check (delivery_preference in ('delivery', 'pickup')),
+  delivery_preference text not null check (delivery_preference in ('delivery', 'pickup', 'dine-in')),
   delivery_address text,
   special_instructions text,
   items jsonb not null check (jsonb_typeof(items) = 'array'),
   total_amount numeric(12, 2) not null check (total_amount >= 0),
+  staff_access_token_hash text unique,
+  staff_code_hash text unique,
+  staff_access_expires_at timestamptz,
   status text not null default 'pending' check (status in ('pending', 'completed', 'cancelled')),
   created_at timestamptz not null default now()
 );
+
+alter table public.orders add column if not exists staff_access_token_hash text unique;
+alter table public.orders add column if not exists staff_code_hash text unique;
+alter table public.orders add column if not exists staff_access_expires_at timestamptz;
+alter table public.orders drop constraint if exists orders_delivery_preference_check;
+alter table public.orders add constraint orders_delivery_preference_check
+  check (delivery_preference in ('delivery', 'pickup', 'dine-in'));
 
 create index if not exists categories_restaurant_sort_idx on public.categories (restaurant_id, sort_order);
 create index if not exists menu_items_restaurant_name_idx on public.menu_items (restaurant_id, name);

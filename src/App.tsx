@@ -15,6 +15,7 @@ import { DashboardOrders } from './pages/DashboardOrders';
 import { DashboardSettings } from './pages/DashboardSettings';
 import { DashboardStorefront } from './pages/DashboardStorefront';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { StaffOrderPage } from './pages/StaffOrderPage';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<LoginPage />} />
         <Route path="/store/:slug" element={<StorefrontPage />} />
+        <Route path="/staff/order/:token" element={<StaffOrderPage />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardOverview />} />

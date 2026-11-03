@@ -6,6 +6,7 @@ import {
   FolderKanban,
   Settings,
   QrCode,
+  ShoppingBag,
   ShieldCheck,
   LogOut,
   ExternalLink,
@@ -63,6 +64,7 @@ export const DashboardLayout: React.FC = () => {
   const navItems = [
     { label: 'Overview', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Menu Items', path: '/dashboard/menu', icon: MenuIcon },
+    { label: 'Orders', path: '/dashboard/orders', icon: ShoppingBag },
     { label: 'Categories', path: '/dashboard/categories', icon: FolderKanban },
     { label: 'Store Settings', path: '/dashboard/settings', icon: Settings },
     { label: 'Storefront & QR', path: '/dashboard/storefront', icon: QrCode },

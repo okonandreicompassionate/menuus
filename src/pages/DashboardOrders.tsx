@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { ShoppingBag, CheckCircle, Clock, XCircle, Phone, MapPin } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ShoppingBag, CheckCircle, Clock, XCircle, Phone, MapPin, RefreshCw, Search, LoaderCircle } from 'lucide-react';
 import { StorageService } from '../services/storage';
-import { Order } from '../types';
+import { Order, StaffOrderView } from '../types';
 import { Menu360AdireBand, Menu360FoodIcon } from '../components/Menu360Brand';
 
 export const DashboardOrders: React.FC = () => {
@@ -11,6 +11,49 @@ export const DashboardOrders: React.FC = () => {
 
   const [orders, setOrders] = useState<Order[]>(StorageService.getOrders(currentRestaurant.id));
   const [error, setError] = useState('');
+  const [lastChecked, setLastChecked] = useState(new Date());
+  const [newOrderIds, setNewOrderIds] = useState<string[]>([]);
+  const [staffCode, setStaffCode] = useState('');
+  const [staffOrder, setStaffOrder] = useState<StaffOrderView | null>(null);
+  const [staffCodeError, setStaffCodeError] = useState('');
+  const [isLookingUpCode, setIsLookingUpCode] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
+  const [orderSearch, setOrderSearch] = useState('');
+  const knownOrderIds = useRef(new Set(orders.map(order => order.id)));
+  const visibleOrders = orders.filter(order => {
+    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    const query = orderSearch.trim().toLowerCase();
+    const matchesSearch = !query || order.customerName.toLowerCase().includes(query) || order.id.toLowerCase().includes(query);
+    return matchesStatus && matchesSearch;
+  });
+
+  useEffect(() => {
+    let active = true;
+    const refreshOrders = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const dashboard = await StorageService.getDashboard();
+        if (!active) return;
+        const incomingOrders = dashboard.orders.filter(order => !knownOrderIds.current.has(order.id));
+        incomingOrders.forEach(order => knownOrderIds.current.add(order.id));
+        if (incomingOrders.length > 0) {
+          setNewOrderIds(current => [...new Set([...current, ...incomingOrders.map(order => order.id)])]);
+        }
+        StorageService.hydrateDashboard(dashboard);
+        setOrders(dashboard.orders);
+        setLastChecked(new Date());
+        setError('');
+      } catch (refreshError) {
+        if (active) setError(refreshError instanceof Error ? refreshError.message : 'Could not refresh incoming orders.');
+      }
+    };
+    void refreshOrders();
+    const timer = window.setInterval(() => void refreshOrders(), 10000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const handleUpdateStatus = async (orderId: string, status: 'pending' | 'completed' | 'cancelled') => {
     setError('');
@@ -22,32 +65,120 @@ export const DashboardOrders: React.FC = () => {
     }
   };
 
+  const handleStaffCodeLookup = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedCode = staffCode.trim().toUpperCase();
+    if (!/^[A-HJ-NP-Z2-9]{8}$/.test(normalizedCode)) {
+      setStaffCodeError('Enter the 8-character code from the guest’s order ticket.');
+      setStaffOrder(null);
+      return;
+    }
+    setIsLookingUpCode(true);
+    setStaffCodeError('');
+    setStaffOrder(null);
+    try {
+      setStaffOrder(await StorageService.getStaffOrderByCode(normalizedCode));
+    } catch (lookupError) {
+      setStaffCodeError(lookupError instanceof Error ? lookupError.message : 'Could not find that order.');
+    } finally {
+      setIsLookingUpCode(false);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Order history</h2>
-        <p className="text-sm text-stone-400">Review orders already on record for your restaurant.</p>
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-white">Incoming orders</h2>
+        <p className="text-sm text-stone-400">New requests appear here automatically while this page is open. Keep WhatsApp open for instant alerts.</p>
+        <p className="mt-2 flex items-center gap-2 text-xs text-stone-500"><RefreshCw className="h-3 w-3" /> Last checked {lastChecked.toLocaleTimeString()}</p>
       </div>
 
       {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
+
+      <section className="rounded-2xl border border-stone-800 bg-stone-900 p-5 sm:p-6">
+        <h3 className="flex items-center gap-2 text-base font-bold text-white"><Search className="h-4 w-4 text-emerald-400" /> Find an order by staff code</h3>
+        <p className="mt-1 text-sm text-stone-400">Enter the 8-character code shown on the guest’s dine-in ticket to open their order.</p>
+        <form onSubmit={event => void handleStaffCodeLookup(event)} className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <input
+            value={staffCode}
+            onChange={event => setStaffCode(event.target.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '').slice(0, 8))}
+            maxLength={8}
+            autoComplete="off"
+            spellCheck={false}
+            aria-label="Staff order code"
+            placeholder="8-character code"
+            className="min-h-11 flex-1 rounded-xl border border-stone-700 bg-stone-950 px-4 font-mono text-lg tracking-[0.2em] text-white outline-none placeholder:font-sans placeholder:text-sm placeholder:tracking-normal focus:border-emerald-500"
+          />
+          <button type="submit" disabled={isLookingUpCode || staffCode.length !== 8} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#008751] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#006C40] disabled:cursor-not-allowed disabled:opacity-50">
+            {isLookingUpCode ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Finding…</> : 'Show order'}
+          </button>
+        </form>
+        {staffCodeError && <p role="alert" className="mt-3 text-sm text-red-300">{staffCodeError}</p>}
+        {staffOrder && (
+          <div className="mt-4 rounded-xl border border-emerald-500/30 bg-stone-950 p-4 sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-800 pb-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">{staffOrder.restaurantName} · Dine in</p>
+                <h4 className="mt-1 text-xl font-extrabold text-white">{staffOrder.orderNumber}</h4>
+                <p className="mt-1 text-sm text-stone-300">Guest: <span className="font-semibold text-white">{staffOrder.customerName}</span></p>
+                <p className="mt-1 text-xs font-semibold capitalize text-emerald-300">Status: {staffOrder.status}</p>
+              </div>
+              <p className="text-xs text-stone-500">{new Date(staffOrder.createdAt).toLocaleString()}</p>
+            </div>
+            <ul className="divide-y divide-stone-800">
+              {staffOrder.items.map((item, index) => (
+                <li key={`${item.menuItemId}-${index}`} className="flex justify-between gap-4 py-3 text-sm">
+                  <span className="font-medium text-white">{item.quantity} × {item.name}</span>
+                  <span className="shrink-0 font-semibold text-emerald-300">{staffOrder.currency}{(item.price * item.quantity).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+            {staffOrder.specialInstructions && <p className="mt-2 whitespace-pre-line rounded-lg bg-stone-900 p-3 text-sm text-stone-300">{staffOrder.specialInstructions}</p>}
+            <div className="mt-3 flex justify-between border-t border-stone-800 pt-3 font-bold text-white">
+              <span>Estimated total</span><span>{staffOrder.currency}{staffOrder.totalAmount.toLocaleString()}</span>
+            </div>
+          </div>
+        )}
+      </section>
 
       {orders.length === 0 ? (
         <div className="overflow-hidden rounded-3xl border border-stone-800 bg-stone-900 text-center text-stone-400">
           <Menu360AdireBand />
           <div className="px-6 py-14">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#F2A31B]"><Menu360FoodIcon kind="menu" size={40} /></div>
-            <p className="text-base font-semibold">No saved orders yet</p>
-            <p className="mt-1 text-sm text-stone-500">WhatsApp requests go straight to your chat. Those conversations are not stored here.</p>
+            <p className="text-base font-semibold">No order requests yet</p>
+            <p className="mt-1 text-sm text-stone-500">Requests guests submit from your menu will appear here. Keep this page open or check WhatsApp for messages.</p>
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {orders.map(order => (
-            <div key={order.id} className="bg-stone-900 border border-stone-800 rounded-3xl p-6 sm:p-8 space-y-6">
+        <section className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              value={orderSearch}
+              onChange={event => setOrderSearch(event.target.value)}
+              placeholder="Search customer or order ID"
+              className="min-h-10 flex-1 rounded-xl border border-stone-800 bg-stone-900 px-4 text-sm text-white outline-none placeholder:text-stone-500 focus:border-emerald-500"
+            />
+            <div className="flex flex-wrap gap-2">
+              {(['all', 'pending', 'completed', 'cancelled'] as const).map(status => (
+                <button key={status} type="button" onClick={() => setStatusFilter(status)} className={`min-h-10 rounded-xl px-3 text-xs font-semibold capitalize ${
+                  statusFilter === status ? 'bg-[#008751] text-white' : 'border border-stone-800 bg-stone-900 text-stone-300 hover:bg-stone-800'
+                }`}>
+                  {status === 'all' ? `All (${orders.length})` : `${status} (${orders.filter(order => order.status === status).length})`}
+                </button>
+              ))}
+            </div>
+          </div>
+          {visibleOrders.length === 0 && <p className="rounded-xl border border-stone-800 bg-stone-900 p-5 text-sm text-stone-400">No orders match this search and status.</p>}
+          {visibleOrders.map(order => (
+            <div key={order.id} className={`bg-stone-900 border rounded-3xl p-6 sm:p-8 space-y-6 ${
+              newOrderIds.includes(order.id) ? 'border-emerald-500/60' : 'border-stone-800'
+            }`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-800">
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
                     <h3 className="text-lg font-bold text-white">{order.customerName}</h3>
+                    {newOrderIds.includes(order.id) && <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-300">New</span>}
                     <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
                       order.status === 'completed'
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
@@ -100,11 +231,11 @@ export const DashboardOrders: React.FC = () => {
                 </div>
 
                 <div className="space-y-4 bg-stone-800/30 p-6 rounded-2xl border border-stone-800">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400">Delivery & Customer Info</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400">Order & Customer Info</h4>
                   <div className="space-y-2 text-stone-300 text-xs">
                     <p className="flex items-center gap-2">
                       <span className="font-semibold text-stone-400">Preference:</span>
-                      <span className="capitalize text-white font-bold">{order.deliveryPreference}</span>
+                      <span className="text-white font-bold">{order.deliveryPreference === 'dine-in' ? 'Dine in' : order.deliveryPreference === 'pickup' ? 'Pickup' : 'Delivery'}</span>
                     </p>
                     {order.customerPhone && (
                       <p className="flex items-center gap-2">
@@ -132,7 +263,7 @@ export const DashboardOrders: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+        </section>
       )}
     </div>
   );

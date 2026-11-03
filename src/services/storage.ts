@@ -1,4 +1,4 @@
-import { AdminRestaurant, PlatformSettings, Restaurant, Category, MenuItem, Order, User } from '../types';
+import { AdminRestaurant, PlatformSettings, Restaurant, Category, MenuItem, Order, OrderSubmission, OrderSubmissionResult, StaffOrderView, User } from '../types';
 import { apiUrl, readApiResponse } from './http';
 import { DEMO_CATEGORIES, DEMO_MENU_ITEMS, DEMO_RESTAURANT } from '../data/mockData';
 
@@ -126,9 +126,23 @@ export const StorageService = {
   },
 
   async saveOrder(order: Order): Promise<Order> {
-    const result = await apiRequest<Order>('/api/orders', 'POST', order);
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify([result, ...readCache<Order>(STORAGE_KEYS.ORDERS)]));
+    const result = await apiRequest<OrderSubmissionResult>('/api/orders', 'POST', order);
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify([result.order, ...readCache<Order>(STORAGE_KEYS.ORDERS)]));
+    return result.order;
+  },
+
+  async submitOrder(order: OrderSubmission): Promise<OrderSubmissionResult> {
+    const result = await apiRequest<OrderSubmissionResult>('/api/orders', 'POST', order);
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify([result.order, ...readCache<Order>(STORAGE_KEYS.ORDERS)]));
     return result;
+  },
+
+  async getStaffOrder(token: string): Promise<StaffOrderView> {
+    return apiRequest(`/api/staff-order/${encodeURIComponent(token)}`);
+  },
+
+  async getStaffOrderByCode(code: string): Promise<StaffOrderView> {
+    return apiRequest(`/api/staff-order/code/${encodeURIComponent(code)}`);
   },
 
   async updateOrderStatus(orderId: string, status: 'pending' | 'completed' | 'cancelled'): Promise<void> {

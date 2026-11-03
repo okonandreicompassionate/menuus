@@ -5,7 +5,7 @@ import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { StorageService } from '../services/storage';
 import { PlatformSettings } from '../types';
-import { Menu360FoodIcon, Menu360Logo } from '../components/Menu360Brand';
+import { Menu360Logo } from '../components/Menu360Brand';
 import heroImage from '../assets/images/jollof_turkey_1793350581200.jpg';
 
 export const LandingPage: React.FC = () => {
@@ -40,30 +40,26 @@ export const LandingPage: React.FC = () => {
               <Menu360Logo markSize={56} />
               <p className="text-sm font-bold text-[#4B5D52]">Every dish, every angle.</p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold tracking-wide text-stone-700 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 text-orange-600" />
-              A digital menu made for food businesses
-            </div>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight text-stone-900 sm:text-5xl lg:text-6xl">
-              Put every dish in its best light.
+              Your menu online. Orders to your team.
             </h1>
             <p className="max-w-xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
-              Build a beautiful online menu with dish photos, descriptions and prices. Guests open your link or scan a QR code to browse on their phone—no app download needed.
+              Add your dishes once. Guests scan your QR, see what’s available and send an order request to your restaurant’s WhatsApp and dashboard.
             </p>
             <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
               <button
                 type="button"
                 disabled={platformSettings?.signupsEnabled === false}
                 onClick={() => navigate('/signup')}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-600/25 transition-all hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#008751] px-6 py-3.5 text-base font-bold text-white transition-colors hover:bg-[#006C40] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {platformSettings?.signupsEnabled === false ? 'Sign-ups paused' : 'Create your menu'} <ArrowRight className="h-4 w-4" />
+                {platformSettings?.signupsEnabled === false ? 'Sign-ups paused' : 'Create your free menu'} <ArrowRight className="h-4 w-4" />
               </button>
               <Link
                 to="/store/the-pepper-house"
-                className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-stone-300 bg-white px-6 py-3.5 text-base font-semibold text-stone-800 shadow-sm transition-all hover:bg-stone-50"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-6 py-3.5 text-base font-semibold text-stone-800 transition-colors hover:bg-stone-50"
               >
-                Explore the demo <Smartphone className="h-4 w-4 text-orange-600" />
+                View sample menu <Smartphone className="h-4 w-4 text-[#008751]" />
               </Link>
             </div>
             <div className="flex flex-wrap gap-x-5 gap-y-2 pt-2 text-xs font-medium text-stone-600 sm:text-sm">
@@ -72,29 +68,20 @@ export const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative lg:col-span-5">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[1.75rem] border-4 border-white bg-stone-900 shadow-2xl sm:aspect-[5/4]">
+          <div className="mx-auto w-full max-w-[390px] lg:col-span-5 lg:mr-0 lg:max-w-[360px]">
+            <div className="relative h-[230px] overflow-hidden rounded-xl border border-[#E3DCC8] bg-stone-900 shadow-md sm:h-[270px] lg:h-[290px]">
               <img
                 src={heroImage}
                 alt="A sample dish shown on the Menu360 digital menu"
-                className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+                className="h-full w-full object-cover"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent p-4 pt-16 text-white sm:p-6 sm:pt-20">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">A sample guest view</p>
-                <p className="mt-1 text-lg font-semibold sm:text-xl">A closer look at what’s on the menu</p>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-12 text-white">
+                <p className="text-sm font-semibold">The Pepper House</p>
+                <p className="mt-0.5 text-xs text-white/80">Sample dish from its online menu</p>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:absolute sm:-bottom-5 sm:-left-5 sm:mt-0 sm:w-[calc(100%+2.5rem)] sm:grid-cols-2">
-              <div className="flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg sm:p-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F2A31B] text-stone-800"><Menu360FoodIcon kind="plantain" size={30} /></span>
-                <span className="text-xs font-semibold leading-4 text-stone-800 sm:text-sm">Photos &amp; prices</span>
-              </div>
-              <div className="flex items-center gap-2.5 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg sm:p-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F2A31B] text-stone-800"><Menu360FoodIcon kind="menu" size={30} /></span>
-                <span className="text-xs font-semibold leading-4 text-stone-800 sm:text-sm">QR-ready link</span>
-              </div>
-            </div>
+            <p className="mt-3 text-xs text-stone-500">A real example of the menu your guests will see.</p>
           </div>
         </div>
       </section>
@@ -102,47 +89,45 @@ export const LandingPage: React.FC = () => {
       {/* How It Works Section */}
       <section id="how-it-works" className="py-20 bg-white border-y border-stone-200 px-6 lg:px-12">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-orange-600">Simple Workflow</h2>
-            <h3 className="text-3xl font-extrabold tracking-tight text-stone-900">How Menu360 Works</h3>
-            <p className="text-stone-600 text-base">Get your restaurant online and sharing its menu in four simple steps.</p>
+          <div className="text-center max-w-2xl mx-auto mb-12 space-y-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[#008751]">For owners and guests</h2>
+            <h3 className="text-3xl font-extrabold tracking-tight text-stone-900">From menu setup to a guest’s order</h3>
+            <p className="text-stone-600 text-base">Add your dishes, share a QR code and receive clear requests from guests.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             {[
               {
                 step: '01',
-                title: 'Create Your Store',
-                desc: 'Sign up in 30 seconds, add your restaurant name, logo, address, and WhatsApp business number.',
+                title: 'Set up your restaurant',
+                desc: 'Add your restaurant name, contact details and WhatsApp business number.',
                 icon: Zap,
               },
               {
                 step: '02',
-                title: 'Add Your Menu',
-                desc: 'Organize items into categories, upload appetizing food photos, set prices in NGN (₦), and toggle availability.',
+                title: 'Add dishes and prices',
+                desc: 'Group dishes into categories, add photos and mark items available or sold out.',
                 icon: Smartphone,
               },
               {
                 step: '03',
-                title: 'Share QR & Link',
-                desc: 'Get a shareable menu link and QR code for tables, messages and social media.',
+                title: 'Put out your QR code',
+                desc: 'Guests scan at the table or open your link from a message or social profile.',
                 icon: QrCode,
               },
               {
                 step: '04',
-                title: 'Take clear order requests',
-                desc: 'Guests choose pickup or delivery and send their name, address, items and estimated total to your WhatsApp. You confirm the request and payment directly.',
+                title: 'Receive the request',
+                desc: 'The order appears in your dashboard. Guests can also send the same details to your WhatsApp.',
                 icon: Sparkles,
               },
             ].map((item, idx) => (
-              <div key={idx} className="bg-stone-50 p-8 rounded-3xl border border-stone-200 relative group hover:border-orange-600/50 transition-all">
-                <span className="text-4xl font-black text-stone-200 group-hover:text-orange-600/20 transition-colors absolute top-6 right-6">
-                  {item.step}
-                </span>
-                <div className="w-12 h-12 rounded-2xl bg-orange-600/10 text-orange-600 flex items-center justify-center mb-6">
-                  <item.icon className="w-6 h-6" />
+              <div key={idx} className="border-t-2 border-[#E3DCC8] bg-white p-6 transition-colors hover:border-[#008751]">
+                <span className="text-xs font-bold tracking-widest text-[#008751]">{item.step}</span>
+                <div className="mb-4 mt-4 text-[#008751]">
+                  <item.icon className="h-6 w-6" />
                 </div>
-                <h4 className="text-lg font-bold text-stone-900 mb-2">{item.title}</h4>
+                <h4 className="mb-2 text-lg font-bold text-stone-900">{item.title}</h4>
                 <p className="text-sm text-stone-600 leading-relaxed">{item.desc}</p>
               </div>
             ))}
@@ -154,9 +139,9 @@ export const LandingPage: React.FC = () => {
       <section id="features" className="py-24 px-6 lg:px-12 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-6">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-orange-600">Built for Growth</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[#008751]">Made for everyday service</h2>
             <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-stone-900">
-              Everything Nigerian food businesses need to thrive online.
+              Give guests the details they need before they order.
             </h3>
             <p className="text-stone-600 leading-relaxed">
               Present your dishes, prices and restaurant details in one elegant place that works beautifully on every screen.
@@ -182,15 +167,14 @@ export const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-stone-900 p-8 lg:p-12 rounded-3xl text-white shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/20 rounded-full blur-3xl pointer-events-none"></div>
-            <h4 className="text-2xl font-bold mb-4">Ready to test drive?</h4>
-            <p className="text-stone-300 text-sm mb-8 leading-relaxed">
-              Step inside our sample restaurant <span className="text-orange-400 font-semibold">“The Pepper House”</span> and explore a complete digital menu.
+          <div className="rounded-xl bg-[#0B2E1F] p-8 text-white lg:p-10">
+            <h4 className="mb-4 text-2xl font-bold">See the guest menu</h4>
+            <p className="mb-8 text-sm leading-relaxed text-stone-200">
+              Browse the sample menu as a customer would. It’s a preview; no real order is sent.
             </p>
             <Link
               to="/store/the-pepper-house"
-              className="inline-flex items-center gap-2 px-6 py-3.5 bg-orange-600 text-white font-semibold rounded-2xl hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/30"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#008751] px-5 py-3 font-semibold text-white transition-colors hover:bg-[#006C40]"
             >
               Visit The Pepper House Storefront <ArrowRight className="w-4 h-4" />
             </Link>

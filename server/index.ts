@@ -156,6 +156,17 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
+function createStaffCode(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let value = BigInt(`0x${randomBytes(5).toString('hex')}`);
+  let code = '';
+  for (let index = 0; index < 8; index += 1) {
+    code = alphabet[Number(value & 31n)] + code;
+    value >>= 5n;
+  }
+  return code;
+}
+
 function setSessionCookie(res: Response, token: string) {
   const secure = env.NODE_ENV === 'production' ? '; Secure' : '';
   const sameSite = env.NODE_ENV === 'production' ? 'None' : 'Lax';
@@ -292,7 +303,7 @@ function mapOrder(row: {
   restaurant_id: string;
   customer_name: string;
   customer_phone: string | null;
-  delivery_preference: 'delivery' | 'pickup';
+  delivery_preference: 'delivery' | 'pickup' | 'dine-in';
   delivery_address: string | null;
   special_instructions: string | null;
   items: Array<{ menuItemId: string; name: string; price: number; quantity: number }>;
@@ -902,7 +913,7 @@ app.post('/api/orders', asyncRoute(async (req, res) => {
   const deliveryAddress = typeof req.body?.deliveryAddress === 'string' ? req.body.deliveryAddress.trim().slice(0, 500) : '';
   const specialInstructions = typeof req.body?.specialInstructions === 'string' ? req.body.specialInstructions.trim().slice(0, 1000) : '';
   const requestedItems = req.body?.items;
-  if (!isUuid(restaurantId) || !customerName || !['delivery', 'pickup'].includes(deliveryPreference)
+  if (!isUuid(restaurantId) || !customerName || !['delivery', 'pickup', 'dine-in'].includes(deliveryPreference)
     || !Array.isArray(requestedItems) || requestedItems.length === 0 || requestedItems.length > 50
     || (deliveryPreference === 'delivery' && !deliveryAddress)) {
     res.status(400).json({ error: 'Provide valid customer and order details.' });
@@ -945,6 +956,8 @@ app.post('/api/orders', asyncRoute(async (req, res) => {
     quantity: itemQuantities.get(item.id)!,
   }));
   const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const staffViewToken = deliveryPreference === 'dine-in' ? randomBytes(32).toString('base64url') : null;
+  const staffCode = deliveryPreference === 'dine-in' ? createStaffCode() : null;
   const { data, error } = await supabase.from('orders').insert({
     restaurant_id: restaurantId,
     customer_name: customerName,
@@ -955,9 +968,92 @@ app.post('/api/orders', asyncRoute(async (req, res) => {
     items: orderItems,
     total_amount: totalAmount,
     status: 'pending',
+    staff_access_token_hash: staffViewToken ? hashToken(staffViewToken) : null,
+    staff_access_expires_at: staffViewToken ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null,
+    staff_code_hash: staffCode ? hashToken(staffCode) : null,
   }).select('*').single();
   if (error) throw error;
-  res.status(201).json(mapOrder(data));
+  res.status(201).json({
+    order: mapOrder(data),
+    ...(staffViewToken ? { staffViewToken } : {}),
+    ...(staffCode ? { staffCode } : {}),
+  });
+}));
+
+app.get('/api/staff-order/:token', asyncRoute(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const token = req.params.token;
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    res.status(404).json({ error: 'This order ticket is invalid or has expired.' });
+    return;
+  }
+  const { data: order, error } = await supabase.from('orders')
+    .select('id,restaurant_id,customer_name,delivery_preference,delivery_address,special_instructions,items,total_amount,created_at,status,staff_access_expires_at')
+    .eq('staff_access_token_hash', hashToken(token))
+    .maybeSingle();
+  if (error) throw error;
+  if (!order || !order.staff_access_expires_at || new Date(order.staff_access_expires_at).getTime() <= Date.now()) {
+    res.status(404).json({ error: 'This order ticket is invalid or has expired.' });
+    return;
+  }
+  const { data: restaurant, error: restaurantError } = await supabase.from('restaurants')
+    .select('name,currency').eq('id', order.restaurant_id).maybeSingle();
+  if (restaurantError) throw restaurantError;
+  if (!restaurant) {
+    res.status(404).json({ error: 'Restaurant for this order could not be found.' });
+    return;
+  }
+  res.json({
+    restaurantName: restaurant.name,
+    orderNumber: `M360-${order.id.slice(0, 8).toUpperCase()}`,
+    customerName: order.customer_name,
+    deliveryPreference: order.delivery_preference,
+    deliveryAddress: order.delivery_address || undefined,
+    specialInstructions: order.special_instructions || undefined,
+    items: order.items,
+    totalAmount: Number(order.total_amount),
+    currency: restaurant.currency,
+    createdAt: order.created_at,
+    status: order.status,
+  });
+}));
+
+app.get('/api/staff-order/code/:code', asyncRoute(async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const code = req.params.code.toUpperCase();
+  if (!/^[A-HJ-NP-Z2-9]{8}$/.test(code)) {
+    res.status(404).json({ error: 'Order not found. Check the code and try again.' });
+    return;
+  }
+  const { data: order, error } = await supabase.from('orders')
+    .select('id,restaurant_id,customer_name,delivery_preference,delivery_address,special_instructions,items,total_amount,created_at,status,staff_access_expires_at')
+    .eq('staff_code_hash', hashToken(code))
+    .maybeSingle();
+  if (error) throw error;
+  if (!order || !order.staff_access_expires_at || new Date(order.staff_access_expires_at).getTime() <= Date.now()) {
+    res.status(404).json({ error: 'Order not found. The code may be incorrect or expired.' });
+    return;
+  }
+  const { data: restaurant, error: restaurantError } = await supabase.from('restaurants')
+    .select('name,currency').eq('id', order.restaurant_id).maybeSingle();
+  if (restaurantError) throw restaurantError;
+  if (!restaurant) {
+    res.status(404).json({ error: 'Restaurant for this order could not be found.' });
+    return;
+  }
+  res.json({
+    restaurantName: restaurant.name,
+    orderNumber: `M360-${order.id.slice(0, 8).toUpperCase()}`,
+    customerName: order.customer_name,
+    deliveryPreference: order.delivery_preference,
+    deliveryAddress: order.delivery_address || undefined,
+    specialInstructions: order.special_instructions || undefined,
+    items: order.items,
+    totalAmount: Number(order.total_amount),
+    currency: restaurant.currency,
+    createdAt: order.created_at,
+    status: order.status,
+  });
 }));
 
 app.patch('/api/orders/:id', asyncRoute(async (req, res) => {

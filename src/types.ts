@@ -76,11 +76,40 @@ export interface Order {
   restaurantId: string;
   customerName: string;
   customerPhone?: string;
-  deliveryPreference: 'delivery' | 'pickup';
+  deliveryPreference: 'delivery' | 'pickup' | 'dine-in';
   deliveryAddress?: string;
   specialInstructions?: string;
   items: OrderItem[];
   totalAmount: number;
   createdAt: string;
   status: 'pending' | 'completed' | 'cancelled';
+}
+
+export interface OrderSubmission {
+  restaurantId: string;
+  customerName: string;
+  deliveryPreference: Order['deliveryPreference'];
+  deliveryAddress?: string;
+  specialInstructions?: string;
+  items: Array<{ menuItemId: string; quantity: number }>;
+}
+
+export interface OrderSubmissionResult {
+  order: Order;
+  staffViewToken?: string;
+  staffCode?: string;
+}
+
+export interface StaffOrderView {
+  restaurantName: string;
+  orderNumber: string;
+  customerName: string;
+  deliveryPreference: Order['deliveryPreference'];
+  deliveryAddress?: string;
+  specialInstructions?: string;
+  items: OrderItem[];
+  totalAmount: number;
+  currency: string;
+  createdAt: string;
+  status: Order['status'];
 }
