@@ -52,7 +52,7 @@ export const LandingPage: React.FC = () => {
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-stone-900">
               <img
                 src={heroImage}
-                alt="MenuDrop Digital Storefront Preview"
+                alt="Menu360 Digital Storefront Preview"
                 className="w-full h-auto object-cover transform hover:scale-105 transition-transform duration-700"
                 referrerPolicy="no-referrer"
               />
@@ -75,7 +75,7 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
             <h2 className="text-xs font-bold uppercase tracking-widest text-orange-600">Simple Workflow</h2>
-            <h3 className="text-3xl font-extrabold tracking-tight text-stone-900">How MenuDrop Works</h3>
+            <h3 className="text-3xl font-extrabold tracking-tight text-stone-900">How Menu360 Works</h3>
             <p className="text-stone-600 text-base">Get your restaurant online and sharing its menu in four simple steps.</p>
           </div>
 
@@ -233,7 +233,7 @@ export const LandingPage: React.FC = () => {
             },
             {
               q: 'Are there any hidden commission fees?',
-              a: 'MenuDrop is view-only in this demo: it does not collect payments or process customer orders. Subscription billing is not enabled yet.',
+              a: 'Menu360 is view-only in this demo: it does not collect payments or process customer orders. Subscription billing is not enabled yet.',
             },
             {
               q: 'Can I download a QR code for my restaurant tables?',

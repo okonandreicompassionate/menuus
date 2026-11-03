@@ -45,7 +45,7 @@ export const LoginPage: React.FC = () => {
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
               <UtensilsCrossed className="h-5 w-5" />
             </span>
-            <span className="text-lg font-semibold tracking-tight">MenuDrop</span>
+            <span className="text-lg font-semibold tracking-tight">Menu360</span>
           </Link>
           <div className="relative z-10 max-w-xl pb-10">
             <p className="mb-5 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#d9c7a2]">Made for good food</p>
@@ -68,7 +68,7 @@ export const LoginPage: React.FC = () => {
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#304638] text-white">
                 <UtensilsCrossed className="h-5 w-5" />
               </span>
-              MenuDrop
+              Menu360
             </Link>
             <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.24em] text-[#77846c]">
               {isSignUp ? 'Your next chapter' : 'Welcome back'}

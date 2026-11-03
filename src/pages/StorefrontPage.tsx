@@ -63,7 +63,7 @@ export const StorefrontPage: React.FC = () => {
         </div>
         <p className="text-stone-600">{loadError || 'Restaurant not found.'}</p>
         <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-800 hover:text-emerald-700">
-          <ArrowLeft className="w-4 h-4" /> Back to MenuDrop
+          <ArrowLeft className="w-4 h-4" /> Back to Menu360
         </Link>
       </main>
     );
@@ -87,7 +87,7 @@ export const StorefrontPage: React.FC = () => {
         <div className="relative mx-auto flex min-h-[410px] max-w-7xl flex-col px-5 pb-9 pt-6 sm:min-h-[500px] sm:px-8 sm:pb-12">
           <div className="flex items-center justify-between">
             <Link to="/" className="inline-flex items-center gap-2 text-xs font-medium text-white/75 hover:text-white">
-              <ArrowLeft className="h-4 w-4" /> MenuDrop
+              <ArrowLeft className="h-4 w-4" /> Menu360
             </Link>
             <span className="rounded-full border border-white/25 bg-black/20 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/90 backdrop-blur">
               Restaurant menu

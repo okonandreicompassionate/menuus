@@ -1,3 +1,10 @@
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || '';
+
+export function apiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${apiBaseUrl}${normalizedPath}`;
+}
+
 export async function readApiResponse<T>(response: Response): Promise<T> {
   const responseText = await response.text();
   let payload: { error?: string } | T | null = null;

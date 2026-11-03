@@ -1,47 +1,57 @@
-# Deploy MenuDrop frontend and API to Vercel
+# Deploy Menu360 frontend to Vercel and API to Render
 
-The Vite frontend is deployed as static output from `dist`. The Express API is exposed as a Vercel Function at `api/[...path].ts`, so the frontend and API share one Vercel project and origin.
+The React/Vite frontend is deployed on Vercel. The Express API and Supabase server credentials run separately on Render. The browser sends API requests to the Render API URL using `VITE_API_BASE_URL`.
 
 ## 1. Prepare Supabase
 
-1. Open the correct Supabase project and run the current `supabase/schema.sql` in SQL Editor.
-2. Keep the Supabase service-role key private. Do not commit `server/.env`.
-3. If the key has been shared or exposed, rotate it in Supabase before deploying.
+Run the current `supabase/schema.sql` in the correct Supabase project. Keep the service-role key private; if it has been exposed, rotate it before deployment.
 
-## 2. Import and deploy the repository
+## 2. Deploy the API to Render
 
-1. Push the project to GitHub.
-2. In Vercel, choose **Add New → Project** and import this repository and branch.
-3. Use the repository root. Framework preset: **Vite**; build command: `npm run build`; output directory: `dist`.
-4. The repository's `vercel.json` configures the SPA routes and sends `/api/*` to the Express function.
+1. In Render, choose **New → Blueprint** and connect this repository. Render reads the root `render.yaml` and creates the `menu360-api` web service.
+2. Provide `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` when prompted. These are server-only secrets.
+3. Wait for the service to deploy. Test `https://<render-service>.onrender.com/api/health`; it should return `{"status":"ok"}`.
+4. In Render **Settings → Custom Domains**, add `api.yourdomain.com` if you want the API on your own subdomain. Render displays the DNS record target—use that exact target in Truehost.
+5. In Render **Environment**, set `APP_ORIGINS` to a comma-separated list of exact frontend origins, for example:
 
-## 3. Configure server environment variables
+   `https://www.yourdomain.com,https://menuus-d7yq.vercel.app`
 
-In Vercel **Project → Settings → Environment Variables**, add these for Production and Preview as needed:
+   Include every frontend hostname you actually use. Origins include the scheme and have no trailing slash. Save changes and redeploy.
 
-| Name | Value |
-| --- | --- |
-| `SUPABASE_URL` | Your Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Supabase service-role key |
-| `APP_ORIGIN` | Optional canonical origin after your domain is connected, e.g. `https://menu.example.com` |
+## 3. Deploy the frontend to Vercel
 
-These are server environment variables. Never prefix the service-role key with `NEXT_PUBLIC_` or `VITE_`. Vercel preview and production hostnames are allowed automatically. Redeploy after adding or changing variables.
+1. Import the same repository into Vercel (or use its existing project), with the repository root, Vite preset, build command `npm run build`, and output directory `dist`.
+2. In Vercel **Settings → Environment Variables**, set the build-time variable `VITE_API_BASE_URL` to the Render API origin, e.g. `https://api.yourdomain.com`. Before the API custom domain is ready, you can use the exact `https://<render-service>.onrender.com` origin.
+3. Deploy/redeploy after setting this variable. `VITE_API_BASE_URL` is public and must contain only the API base URL—never a Supabase secret.
+4. In Vercel **Settings → Domains**, add `www.yourdomain.com`. Vercel's domain screen currently shows:
 
-For local development, the root `.env` is for client-safe values only. The API loads server-only settings from `server/.env`. Use `server/.env.example` as the template; both actual `.env` files are ignored by Git.
+   | Type | Name | Value |
+   | --- | --- | --- |
+   | CNAME | `www` | `1db9aac9b849ce94.vercel-dns-017.com` |
 
-## 4. Attach your Truehost domain
+5. In Truehost's DNS/Zone Editor, create or update the `www` CNAME with exactly that value. Remove a conflicting `www` record if Truehost reports one. Do not put the scheme (`https://`) in a DNS value.
+6. If adding `api.yourdomain.com`, add it to the Render service's Custom Domains and create the DNS record Render displays for the `api` host. The Vercel `www` CNAME is not the API record.
+7. Wait for Vercel and Render to verify their respective domains and provision HTTPS. Set `VITE_API_BASE_URL` to `https://api.yourdomain.com`, update Render `APP_ORIGINS` to include `https://www.yourdomain.com`, then redeploy both services.
 
-1. In Vercel, open the project **Settings → Domains**, add your domain, and choose the canonical hostname (`example.com` or `www.example.com`).
-2. Vercel will display the exact DNS records needed. Keep that Vercel tab open.
-3. Sign in to Truehost, open the domain's DNS management/Zone Editor, and add or update the records to match Vercel exactly. Do not guess the record values. Remove conflicting records for the same host if Vercel instructs you to.
-4. Return to Vercel and wait for the domain to verify and HTTPS to become active.
-5. Set `APP_ORIGIN` in Vercel to the exact canonical HTTPS origin, for example `https://example.com`, then redeploy.
+The root/apex domain (`yourdomain.com`) is separate from `www`. Add it in Vercel and follow the additional DNS record Vercel displays if you also want the apex domain to work or redirect.
 
-DNS changes may take time to propagate. The Vercel Domains page shows whether the records are correct.
+## 4. Local environment files
 
-## 5. Grant your existing account admin access
+- Repository root `.env`: client-safe frontend settings, including optional `VITE_API_BASE_URL`. Leave it blank locally to use the Vite proxy to `localhost:4000`.
+- `server/.env`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and local `APP_ORIGINS`.
+- Copy templates from `.env.example` and `server/.env.example`. The actual env files are ignored by Git.
 
-After the schema migration, replace the example address with your account email and run once in Supabase SQL Editor:
+## 5. Production checks
+
+- Render API `/api/health` returns `{"status":"ok"}`.
+- Vercel frontend pages `/signup`, `/dashboard`, `/admin`, and `/store/the-pepper-house` load on direct refresh.
+- Sign in with an existing account; no test account is necessary.
+- Upload an allowed image and verify it appears in the menu.
+- If an API request fails, inspect Render **Logs**. CORS 403 errors mean the exact Vercel/custom frontend origin is missing from `APP_ORIGINS`.
+
+## Admin access
+
+After the schema migration, promote your existing account in Supabase SQL Editor (replace the example address):
 
 ```sql
 update public.app_users
@@ -49,19 +59,4 @@ set role = 'admin'
 where lower(email) = lower('you@example.com');
 ```
 
-Sign out and back in, then open `/admin`.
-
-## 6. Verify deployment
-
-- Open `/api/health`; it should return `{"status":"ok"}`.
-- Open `/signup`, `/dashboard`, `/admin`, and `/store/the-pepper-house` directly and refresh.
-- Sign in with an existing account; do not create test accounts unless you want them.
-- Verify menu image upload and QR/link sharing.
-- Review Vercel Function Runtime Logs if an API request fails.
-
-## Troubleshooting
-
-- **API returns `FUNCTION_INVOCATION_FAILED`:** check Vercel Function Runtime Logs and ensure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` exist for that deployment environment.
-- **Database errors after the function starts:** run `supabase/schema.sql` against the same project configured by `SUPABASE_URL`.
-- **Writes return 403:** set `APP_ORIGIN` to the exact public HTTPS origin and redeploy.
-- **Nested page refresh returns 404:** confirm this repository's `vercel.json` rewrites were included in the deployed commit.
+Sign out and back in, then visit `/admin`.

@@ -20,11 +20,11 @@ const sessionCookie = 'menudrop_session';
 const sessionLifetimeMs = 7 * 24 * 60 * 60 * 1000;
 const allowedOrigins = new Set(
   [
+    ...(env.APP_ORIGINS || '').split(','),
     env.APP_ORIGIN,
-    env.VERCEL_URL ? `https://${env.VERCEL_URL}` : '',
-    env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : '',
     env.NODE_ENV === 'production' ? '' : 'http://localhost:3000',
   ]
+    .map(origin => origin?.trim())
     .filter((origin): origin is string => Boolean(origin))
     .map(origin => new URL(origin).origin),
 );
@@ -47,14 +47,29 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 app.disable('x-powered-by');
 app.use(express.json({ limit: '4.25mb' }));
 
-app.use((req, _res, next) => {
-  const originalPath = req.query.__originalPath;
-  if (env.VERCEL === '1' && typeof originalPath === 'string' && originalPath.startsWith('/api/')) {
-    const query = new URL(req.originalUrl, 'https://menudrop.invalid').searchParams;
-    query.delete('__originalPath');
-    const remainingQuery = query.toString();
-    req.url = `${originalPath}${remainingQuery ? `?${remainingQuery}` : ''}`;
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.vary('Origin');
+  } else if (origin) {
+    res.status(403).json({ error: 'Request origin is not allowed.' });
+    return;
   }
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
+  if (req.path.startsWith('/api/') && !['GET', 'HEAD'].includes(req.method) && (!origin || !allowedOrigins.has(origin))) {
+    res.status(403).json({ error: 'Request origin is not allowed.' });
+    return;
+  }
+
   next();
 });
 
@@ -111,15 +126,17 @@ function hashToken(token: string): string {
 
 function setSessionCookie(res: Response, token: string) {
   const secure = env.NODE_ENV === 'production' ? '; Secure' : '';
+  const sameSite = env.NODE_ENV === 'production' ? 'None' : 'Lax';
   res.setHeader(
     'Set-Cookie',
-    `${sessionCookie}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(sessionLifetimeMs / 1000)}${secure}`,
+    `${sessionCookie}=${token}; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=${Math.floor(sessionLifetimeMs / 1000)}${secure}`,
   );
 }
 
 function clearSessionCookie(res: Response) {
   const secure = env.NODE_ENV === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${sessionCookie}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure}`);
+  const sameSite = env.NODE_ENV === 'production' ? 'None' : 'Lax';
+  res.setHeader('Set-Cookie', `${sessionCookie}=; HttpOnly; SameSite=${sameSite}; Path=/; Max-Age=0${secure}`);
 }
 
 function normalizeText(value: unknown, maxLength: number): string | null {
@@ -303,21 +320,6 @@ function decodeImageData(value: unknown): { bytes: Buffer; mimeType: string; ext
   if (!isJpeg && !isPng && !isWebp) return null;
   return { bytes, mimeType, extension: mimeType === 'image/jpeg' ? 'jpg' : mimeType.slice('image/'.length) };
 }
-
-app.use('/api', (req, res, next) => {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  const origin = req.get('origin');
-  let requestOrigin: string | null = null;
-  try {
-    requestOrigin = origin ? new URL(origin).origin : null;
-  } catch {
-    requestOrigin = null;
-  }
-  if (!requestOrigin || !allowedOrigins.has(requestOrigin)) {
-    return res.status(403).json({ error: 'Request origin is not allowed.' });
-  }
-  next();
-});
 
 app.post('/api/auth/signup', asyncRoute(async (req, res) => {
   const name = normalizeText(req.body?.name, 100);
@@ -886,7 +888,7 @@ app.patch('/api/orders/:id', asyncRoute(async (req, res) => {
   res.json(mapOrder(data));
 }));
 
-if (env.NODE_ENV === 'production' && env.VERCEL !== '1') {
+if (env.NODE_ENV === 'production' && env.API_ONLY !== 'true') {
   app.use(express.static(staticDirectory));
   app.get('*', (_req, res) => res.sendFile(path.join(staticDirectory, 'index.html')));
 }
@@ -897,10 +899,8 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'The server could not complete the request. Please try again.' });
 });
 
-if (env.VERCEL !== '1') {
-  app.listen(port, '0.0.0.0', () => {
-    console.log(`MenuDrop server listening on port ${port}`);
-  });
-}
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Menu360 API listening on port ${port}`);
+});
 
 export default app;

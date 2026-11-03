@@ -1,5 +1,5 @@
 import { Restaurant, User } from '../types';
-import { readApiResponse } from './http';
+import { apiUrl, readApiResponse } from './http';
 
 type AuthResponse = {
   user: User;
@@ -8,7 +8,7 @@ type AuthResponse = {
 
 async function request(path: string, body?: unknown): Promise<AuthResponse> {
   try {
-    const response = await fetch(path, {
+    const response = await fetch(apiUrl(path), {
       method: body === undefined ? 'GET' : 'POST',
       credentials: 'include',
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },

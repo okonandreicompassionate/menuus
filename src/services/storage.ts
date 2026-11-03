@@ -1,5 +1,5 @@
 import { AdminRestaurant, Restaurant, Category, MenuItem, Order, User } from '../types';
-import { readApiResponse } from './http';
+import { apiUrl, readApiResponse } from './http';
 import { DEMO_CATEGORIES, DEMO_MENU_ITEMS, DEMO_RESTAURANT } from '../data/mockData';
 
 const STORAGE_KEYS = {
@@ -17,7 +17,7 @@ function readCache<T>(key: string): T[] {
 
 async function apiRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   try {
-    const response = await fetch(path, {
+    const response = await fetch(apiUrl(path), {
       method,
       credentials: 'include',
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },

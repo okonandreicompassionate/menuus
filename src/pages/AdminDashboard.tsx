@@ -57,7 +57,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="mx-auto max-w-7xl space-y-8">
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-orange-500">MenuDrop control room</p>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-orange-500">Menu360 control room</p>
             <h1 className="text-3xl font-semibold text-white sm:text-4xl">Admin dashboard</h1>
             <p className="mt-2 text-sm text-stone-400">Review registered restaurants and manage storefront availability.</p>
           </div>

@@ -11,7 +11,7 @@ export const Footer: React.FC = () => {
             <div className="w-8 h-8 rounded-lg bg-[#304638] flex items-center justify-center text-white">
               <UtensilsCrossed className="w-4 h-4" />
             </div>
-            <span>MenuDrop</span>
+            <span>Menu360</span>
           </div>
           <p className="text-sm text-stone-400 leading-relaxed">
             Helping Nigerian restaurants, cafes, and food vendors share beautiful, easy-to-browse digital menus.
@@ -48,7 +48,7 @@ export const Footer: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto pt-8 border-t border-[#dcd8ce] flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-4">
-        <p>© {new Date().getFullYear()} MenuDrop Technologies. Built for Nigerian Hospitality.</p>
+        <p>© {new Date().getFullYear()} Menu360. Built for Nigerian Hospitality.</p>
         <p className="flex items-center gap-1">
           Crafted with <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" /> for food entrepreneurs.
         </p>

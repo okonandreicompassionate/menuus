@@ -97,7 +97,7 @@ export const DashboardLayout: React.FC = () => {
           <div className="w-8 h-8 rounded-xl bg-orange-600 flex items-center justify-center text-white">
             <UtensilsCrossed className="w-4 h-4" />
           </div>
-          <span className="font-bold text-lg">MenuDrop</span>
+          <span className="font-bold text-lg">Menu360</span>
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -118,7 +118,7 @@ export const DashboardLayout: React.FC = () => {
             <UtensilsCrossed className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-bold text-base text-white">MenuDrop</h1>
+            <h1 className="font-bold text-base text-white">Menu360</h1>
             <p className="text-xs text-stone-400">Merchant Dashboard</p>
           </div>
         </div>
