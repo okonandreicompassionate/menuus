@@ -43,6 +43,17 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 app.disable('x-powered-by');
 app.use(express.json({ limit: '4.25mb' }));
 
+app.use((req, _res, next) => {
+  const originalPath = req.query.__originalPath;
+  if (env.VERCEL === '1' && typeof originalPath === 'string' && originalPath.startsWith('/api/')) {
+    const query = new URL(req.originalUrl, 'https://menudrop.invalid').searchParams;
+    query.delete('__originalPath');
+    const remainingQuery = query.toString();
+    req.url = `${originalPath}${remainingQuery ? `?${remainingQuery}` : ''}`;
+  }
+  next();
+});
+
 type AppUser = {
   id: string;
   email: string;

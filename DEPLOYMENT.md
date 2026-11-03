@@ -57,3 +57,9 @@ Sign out and back in to refresh the role in the session. Open `/admin` on your d
 - Only test suspension/reactivation with a non-critical demo restaurant.
 
 The 3 MB upload limit keeps base64 uploads below the Vercel Function request-body limit.
+
+## Troubleshooting deployed API errors
+
+- **`/api/auth/signup` returns Vercel's `404 NOT_FOUND`:** redeploy a commit containing `api/index.ts` and the `/api/:path*` rewrite in `vercel.json`. They route nested Express endpoints through one function.
+- **An API request returns `FUNCTION_INVOCATION_FAILED`:** check **Vercel → Project → Settings → Environment Variables**. Confirm `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set for the environment used by that deployment, then redeploy.
+- **The function runs but returns a database error:** run the current `supabase/schema.sql` in the matching Supabase project and inspect Vercel Runtime Logs for the database error details.
