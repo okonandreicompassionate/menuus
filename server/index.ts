@@ -1083,6 +1083,20 @@ if (env.NODE_ENV === 'production' && env.API_ONLY !== 'true') {
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error('API request failed:', error);
   if (res.headersSent) return;
+  if (
+    error !== null
+    && typeof error === 'object'
+    && 'code' in error
+    && error.code === 'PGRST205'
+    && 'message' in error
+    && typeof error.message === 'string'
+    && error.message.includes("public.app_settings")
+  ) {
+    res.status(503).json({
+      error: 'Supabase is missing the platform settings table. In Supabase SQL Editor, run the app_settings table and seed statements from supabase/schema.sql, then retry.',
+    });
+    return;
+  }
   res.status(500).json({ error: 'The server could not complete the request. Please try again.' });
 });
 

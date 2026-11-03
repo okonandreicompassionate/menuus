@@ -693,6 +693,10 @@ select {
   border-color: rgb(251 246 234 / 0.18) !important;
 }
 
+[data-dashboard] aside .menu360-active-store-card {
+  background-color: rgb(251 246 234 / 0.1) !important;
+}
+
 [data-dashboard] aside nav a.bg-orange-600,
 [data-dashboard] aside nav a.bg-orange-600:hover {
   background-color: var(--m360-green) !important;

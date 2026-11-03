@@ -94,7 +94,9 @@ export const DashboardLayout: React.FC = () => {
     <div data-dashboard className="min-h-screen bg-stone-950 text-stone-100 flex flex-col md:flex-row font-sans selection:bg-orange-600 selection:text-white">
       {/* Mobile Top Header */}
       <div className="md:hidden flex items-center justify-between px-6 py-4 bg-stone-900 border-b border-stone-800">
-        <Menu360Logo dark markSize={38} />
+        <Link to="/" aria-label="menu360° home" onClick={() => setMobileMenuOpen(false)}>
+          <Menu360Logo dark markSize={38} />
+        </Link>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="p-2 rounded-xl bg-stone-800 text-stone-300 hover:text-white"
@@ -110,11 +112,13 @@ export const DashboardLayout: React.FC = () => {
         } md:flex flex-col w-full md:w-72 bg-stone-900 border-r border-stone-800 shrink-0 fixed md:static inset-y-0 z-40 pt-16 md:pt-0`}
       >
         <div className="p-6 border-b border-stone-800 hidden md:flex items-center gap-3">
-          <Menu360Logo dark markSize={42} />
+          <Link to="/" aria-label="menu360° home">
+            <Menu360Logo dark markSize={42} />
+          </Link>
         </div>
 
         {/* Restaurant selector info */}
-        <div className="p-4 mx-4 mt-6 rounded-2xl bg-stone-800/60 border border-stone-700/50 flex items-center justify-between">
+        <div className="menu360-active-store-card p-4 mx-4 mt-6 rounded-2xl border border-stone-700/50 flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
             {currentRestaurant.logo ? (
               <img

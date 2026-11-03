@@ -37,7 +37,9 @@ export const LandingPage: React.FC = () => {
         <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-12">
           <div className="space-y-6 lg:col-span-7">
             <div className="flex flex-wrap items-center gap-4">
-              <Menu360Logo markSize={56} />
+              <Link to="/" aria-label="menu360° home" className="inline-flex">
+                <Menu360Logo markSize={56} />
+              </Link>
               <p className="text-sm font-bold text-[#4B5D52]">Every dish, every angle.</p>
             </div>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight text-stone-900 sm:text-5xl lg:text-6xl">
@@ -131,6 +133,57 @@ export const LandingPage: React.FC = () => {
                 <p className="text-sm text-stone-600 leading-relaxed">{item.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="how-to-use" className="scroll-mt-24 bg-[#FBF6EA] px-5 py-16 sm:px-8 sm:py-20 lg:px-12">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[#008751]">Quick guide</h2>
+            <h3 className="mt-3 text-3xl font-extrabold tracking-tight text-[#0B2E1F] sm:text-4xl">How to use Menu360</h3>
+            <p className="mt-3 text-sm leading-6 text-stone-600 sm:text-base">A straightforward guide for restaurant owners, staff and guests.</p>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            <article className="rounded-xl border border-[#E3DCC8] bg-white p-6 sm:p-8">
+              <h4 className="text-xl font-bold text-[#0B2E1F]">For the restaurant</h4>
+              <ol className="mt-5 space-y-5">
+                {[
+                  ['Set up your page', 'Create an account and add your restaurant name, description, hours and WhatsApp business number.'],
+                  ['Build your menu', 'Add categories, dish names, prices and photos. Mark an item unavailable whenever you run out.'],
+                  ['Share your menu', 'Download your QR artwork or copy the link. Put the QR on tables, counters, packaging or social media.'],
+                  ['Handle incoming orders', 'Submitted requests appear in the dashboard Orders page. Keep it open to see new orders refresh, and use status filters to track pending and completed requests.'],
+                  ['Help dine-in guests', 'Guests receive a numbered ticket and short code. Scan their QR or enter the code in Orders to view their items.'],
+                ].map(([title, detail], index) => (
+                  <li key={title} className="flex gap-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EAF4EE] text-xs font-bold text-[#008751]">{index + 1}</span>
+                    <div><h5 className="text-sm font-bold text-stone-900">{title}</h5><p className="mt-1 text-sm leading-5 text-stone-600">{detail}</p></div>
+                  </li>
+                ))}
+              </ol>
+            </article>
+
+            <article className="rounded-xl border border-[#E3DCC8] bg-white p-6 sm:p-8">
+              <h4 className="text-xl font-bold text-[#0B2E1F]">For your guests</h4>
+              <ol className="mt-5 space-y-5">
+                {[
+                  ['Open the menu', 'Scan the restaurant QR code or open its menu link. No app download is needed.'],
+                  ['Choose what you want', 'Browse categories, search dishes and add available items to the order basket.'],
+                  ['Choose dine-in, pickup or delivery', 'Enter a name. Delivery guests add an address; dine-in guests can simply submit their order.'],
+                  ['Send the request', 'Submitting saves the order for the restaurant. WhatsApp can also open with the order details so the guest can message staff.'],
+                  ['Show the dine-in ticket', 'For dine-in, keep the numbered ticket open and show its QR or short code to staff. They can look up the order and confirm it before preparing.'],
+                ].map(([title, detail], index) => (
+                  <li key={title} className="flex gap-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#EAF4EE] text-xs font-bold text-[#008751]">{index + 1}</span>
+                    <div><h5 className="text-sm font-bold text-stone-900">{title}</h5><p className="mt-1 text-sm leading-5 text-stone-600">{detail}</p></div>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-6 rounded-lg bg-[#F5EFDF] p-3 text-xs leading-5 text-stone-600">
+                Orders are requests, not automatic payment or kitchen tickets. Restaurant staff should confirm availability, final price and preparation with the guest.
+              </p>
+            </article>
           </div>
         </div>
       </section>

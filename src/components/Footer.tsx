@@ -8,7 +8,9 @@ export const Footer: React.FC = () => {
     <footer className="border-t border-[#E3DCC8] bg-[#FBF6EA] px-6 py-16 text-stone-600 lg:px-12">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
         <div className="space-y-4">
-          <Menu360Logo markSize={40} />
+          <Link to="/" aria-label="menu360° home" className="inline-flex">
+            <Menu360Logo markSize={40} />
+          </Link>
           <p className="text-sm text-stone-400 leading-relaxed">
             Every dish, every angle. Beautiful digital menus for Nigerian food businesses.
           </p>

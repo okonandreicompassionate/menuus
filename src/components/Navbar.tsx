@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, CircleHelp } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { Menu360Logo } from './Menu360Brand';
 
@@ -26,6 +26,14 @@ export const Navbar: React.FC<{ signupsEnabled?: boolean | null }> = ({ signupsE
 
       {/* Zone 3: Primary Action */}
       <div className="flex items-center gap-3 shrink-0">
+        <Link
+          to="/#how-to-use"
+          aria-label="How to use Menu360"
+          title="How to use Menu360"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#E3DCC8] text-[#0B2E1F] transition-colors hover:border-[#008751] hover:text-[#008751]"
+        >
+          <CircleHelp className="h-5 w-5" />
+        </Link>
         {currentUser ? (
           <button
             onClick={() => navigate('/dashboard')}

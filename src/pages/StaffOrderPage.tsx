@@ -31,7 +31,7 @@ export const StaffOrderPage: React.FC = () => {
   if (error || !order) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#FBF6EA] px-5 text-center">
-        <Menu360Logo />
+        <Link to="/" aria-label="menu360° home"><Menu360Logo /></Link>
         <div>
           <h1 className="text-xl font-bold text-[#0B2E1F]">Order ticket unavailable</h1>
           <p className="mt-2 max-w-md text-sm leading-6 text-stone-600">{error || 'This ticket is invalid or has expired. Ask the guest to reopen their order ticket.'}</p>
@@ -45,7 +45,7 @@ export const StaffOrderPage: React.FC = () => {
     <main className="min-h-screen bg-[#FBF6EA] px-4 py-6 text-[#0B2E1F] sm:px-6 sm:py-10">
       <article className="mx-auto max-w-xl overflow-hidden rounded-2xl border border-[#E3DCC8] bg-white shadow-sm">
         <header className="bg-[#0B2E1F] px-5 py-5 text-white sm:px-7">
-          <Menu360Logo dark markSize={36} />
+          <Link to="/" aria-label="menu360° home"><Menu360Logo dark markSize={36} /></Link>
           <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-[#F2A31B]">{order.restaurantName} · Dine in</p>
           <h1 className="mt-1 text-3xl font-extrabold tracking-wide">{order.orderNumber}</h1>
           <p className="mt-2 flex items-center gap-2 text-sm text-white/75"><Clock3 className="h-4 w-4" /> {new Date(order.createdAt).toLocaleString()}</p>
