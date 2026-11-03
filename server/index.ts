@@ -1,8 +1,8 @@
 import { Buffer } from 'node:buffer';
-import 'dotenv/config';
 import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { env } from 'node:process';
 import path from 'node:path';
+import { config } from 'dotenv';
 import { promisify } from 'node:util';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,25 +13,29 @@ const scrypt = promisify(scryptCallback);
 const app = express();
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const staticDirectory = path.resolve(serverDirectory, '../dist');
+config({ path: path.resolve(serverDirectory, '.env') });
+
 const port = Number(env.PORT || env.API_PORT || 4000);
 const sessionCookie = 'menudrop_session';
 const sessionLifetimeMs = 7 * 24 * 60 * 60 * 1000;
 const allowedOrigins = new Set(
   [
     env.APP_ORIGIN,
-    env.RENDER_EXTERNAL_URL,
+    env.VERCEL_URL ? `https://${env.VERCEL_URL}` : '',
+    env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : '',
     env.NODE_ENV === 'production' ? '' : 'http://localhost:3000',
   ]
     .filter((origin): origin is string => Boolean(origin))
     .map(origin => new URL(origin).origin),
 );
 
-const supabaseUrl = env.SUPABASE_URL || env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl = env.SUPABASE_URL;
 const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !serviceRoleKey) {
   throw new Error(
-    'Configure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env. ' +
+    'Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in server/.env for local use, ' +
+    'or as server environment variables in production. ' +
     'Get the service-role secret from Supabase Project Settings → API Keys; never use the publishable key for this value.',
   );
 }
@@ -43,7 +47,18 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 app.disable('x-powered-by');
 app.use(express.json({ limit: '4.25mb' }));
 
-app.get('/api/health', (_req, res) => {
+app.use((req, _res, next) => {
+  const originalPath = req.query.__originalPath;
+  if (env.VERCEL === '1' && typeof originalPath === 'string' && originalPath.startsWith('/api/')) {
+    const query = new URL(req.originalUrl, 'https://menudrop.invalid').searchParams;
+    query.delete('__originalPath');
+    const remainingQuery = query.toString();
+    req.url = `${originalPath}${remainingQuery ? `?${remainingQuery}` : ''}`;
+  }
+  next();
+});
+
+app.get(['/api/health', '/health'], (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
@@ -871,7 +886,7 @@ app.patch('/api/orders/:id', asyncRoute(async (req, res) => {
   res.json(mapOrder(data));
 }));
 
-if (env.NODE_ENV === 'production') {
+if (env.NODE_ENV === 'production' && env.VERCEL !== '1') {
   app.use(express.static(staticDirectory));
   app.get('*', (_req, res) => res.sendFile(path.join(staticDirectory, 'index.html')));
 }
@@ -882,8 +897,10 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'The server could not complete the request. Please try again.' });
 });
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`MenuDrop server listening on port ${port}`);
-});
+if (env.VERCEL !== '1') {
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`MenuDrop server listening on port ${port}`);
+  });
+}
 
 export default app;

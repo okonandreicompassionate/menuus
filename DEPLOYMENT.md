@@ -1,48 +1,47 @@
-# Deploy MenuDrop to Render
+# Deploy MenuDrop frontend and API to Vercel
+
+The Vite frontend is deployed as static output from `dist`. The Express API is exposed as a Vercel Function at `api/[...path].ts`, so the frontend and API share one Vercel project and origin.
 
 ## 1. Prepare Supabase
 
-1. Open the correct Supabase project and go to **SQL Editor**.
-2. Run the current `supabase/schema.sql`. It creates/updates the app tables, admin and restaurant status fields, and the image storage bucket.
-3. Keep the Supabase service-role key private. Render needs it as a server environment variable only.
+1. Open the correct Supabase project and run the current `supabase/schema.sql` in SQL Editor.
+2. Keep the Supabase service-role key private. Do not commit `server/.env`.
+3. If the key has been shared or exposed, rotate it in Supabase before deploying.
 
-Existing accounts keep the default `owner` role; do not create another account just to deploy.
+## 2. Import and deploy the repository
 
-## 2. Import the repository
+1. Push the project to GitHub.
+2. In Vercel, choose **Add New → Project** and import this repository and branch.
+3. Use the repository root. Framework preset: **Vite**; build command: `npm run build`; output directory: `dist`.
+4. The repository's `vercel.json` configures the SPA routes and sends `/api/*` to the Express function.
 
-1. Push the project to the GitHub repository.
-2. In Render, choose **New → Blueprint** and connect the repository containing `render.yaml`.
-3. Review the `menudrop` web service. The Blueprint uses Node 22, builds the Vite frontend, starts the Express server, and configures `/api/health` for health checks.
-4. When prompted, provide `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for the Render service.
-5. Apply the Blueprint and wait for the first deploy to finish.
+## 3. Configure server environment variables
 
-The Express server serves both the built frontend and API on Render's assigned `PORT`. Do not run Vite as the production server.
-
-## 3. Check environment variables
-
-In the Render service, open **Environment** and confirm:
+In Vercel **Project → Settings → Environment Variables**, add these for Production and Preview as needed:
 
 | Name | Value |
 | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Supabase service-role secret |
-| `NODE_ENV` | `production` (set by the Blueprint) |
-| `APP_ORIGIN` | Optional canonical origin after adding your custom domain |
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Supabase service-role key |
+| `APP_ORIGIN` | Optional canonical origin after your domain is connected, e.g. `https://menu.example.com` |
 
-Render's default service origin is allowed automatically. Add `APP_ORIGIN` when you decide which custom domain is canonical, for example `https://menu.example.com`, then save and redeploy.
+These are server environment variables. Never prefix the service-role key with `NEXT_PUBLIC_` or `VITE_`. Vercel preview and production hostnames are allowed automatically. Redeploy after adding or changing variables.
 
-Never put the service-role key in a `NEXT_PUBLIC_*` or `VITE_*` variable. If this secret has been exposed, rotate it in Supabase before deploying and update Render with the replacement.
+For local development, the root `.env` is for client-safe values only. The API loads server-only settings from `server/.env`. Use `server/.env.example` as the template; both actual `.env` files are ignored by Git.
 
-## 4. Connect your domain
+## 4. Attach your Truehost domain
 
-1. Open the Render service **Settings → Custom Domains** and add your domain.
-2. At your domain registrar, enter the DNS records Render displays for that domain. Do not guess the record values.
-3. Wait until Render verifies the domain and provisions HTTPS.
-4. Set `APP_ORIGIN` to the exact canonical HTTPS origin (apex or `www`) and redeploy.
+1. In Vercel, open the project **Settings → Domains**, add your domain, and choose the canonical hostname (`example.com` or `www.example.com`).
+2. Vercel will display the exact DNS records needed. Keep that Vercel tab open.
+3. Sign in to Truehost, open the domain's DNS management/Zone Editor, and add or update the records to match Vercel exactly. Do not guess the record values. Remove conflicting records for the same host if Vercel instructs you to.
+4. Return to Vercel and wait for the domain to verify and HTTPS to become active.
+5. Set `APP_ORIGIN` in Vercel to the exact canonical HTTPS origin, for example `https://example.com`, then redeploy.
 
-## 5. Grant your account admin access
+DNS changes may take time to propagate. The Vercel Domains page shows whether the records are correct.
 
-After the schema migration and a successful sign-in, run this once in Supabase SQL Editor, replacing the email with your existing account's email:
+## 5. Grant your existing account admin access
+
+After the schema migration, replace the example address with your account email and run once in Supabase SQL Editor:
 
 ```sql
 update public.app_users
@@ -50,21 +49,19 @@ set role = 'admin'
 where lower(email) = lower('you@example.com');
 ```
 
-Sign out and back in to refresh the role. Open `/admin` on your Render site.
+Sign out and back in, then open `/admin`.
 
-## 6. Production smoke test
+## 6. Verify deployment
 
 - Open `/api/health`; it should return `{"status":"ok"}`.
-- Sign in with an existing account and open its merchant dashboard.
-- Upload a JPG, PNG, or WebP up to 3 MB, then confirm it is visible in the storefront.
-- Open `/store/<slug>` directly and refresh the page.
-- Copy the storefront link and confirm its QR code uses the deployed domain.
-- Open `/admin` as the promoted admin; verify a normal owner cannot use admin actions.
-- Only test suspension/reactivation with a non-critical demo restaurant.
+- Open `/signup`, `/dashboard`, `/admin`, and `/store/the-pepper-house` directly and refresh.
+- Sign in with an existing account; do not create test accounts unless you want them.
+- Verify menu image upload and QR/link sharing.
+- Review Vercel Function Runtime Logs if an API request fails.
 
 ## Troubleshooting
 
-- **Health check fails or the app does not start:** check Render **Logs**. Confirm the Supabase URL and service-role secret are set. The process must bind to Render's `PORT`, which this server reads automatically.
-- **API returns an application-level 500:** inspect Render logs for the database error and confirm `supabase/schema.sql` was run in the same Supabase project.
-- **Write requests return 403:** set `APP_ORIGIN` to the exact public HTTPS origin if using a custom domain, then redeploy.
-- **Uploads fail:** confirm the schema created the `menudrop-images` bucket and try an allowed JPG, PNG, or WebP file no larger than 3 MB.
+- **API returns `FUNCTION_INVOCATION_FAILED`:** check Vercel Function Runtime Logs and ensure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` exist for that deployment environment.
+- **Database errors after the function starts:** run `supabase/schema.sql` against the same project configured by `SUPABASE_URL`.
+- **Writes return 403:** set `APP_ORIGIN` to the exact public HTTPS origin and redeploy.
+- **Nested page refresh returns 404:** confirm this repository's `vercel.json` rewrites were included in the deployed commit.
