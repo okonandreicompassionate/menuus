@@ -18,16 +18,20 @@ config({ path: path.resolve(serverDirectory, '.env') });
 const port = Number(env.PORT || env.API_PORT || 4000);
 const sessionCookie = 'menudrop_session';
 const sessionLifetimeMs = 7 * 24 * 60 * 60 * 1000;
-const allowedOrigins = new Set(
-  [
-    ...(env.APP_ORIGINS || '').split(','),
-    env.APP_ORIGIN,
-    env.NODE_ENV === 'production' ? '' : 'http://localhost:3000',
-  ]
-    .map(origin => origin?.trim())
-    .filter((origin): origin is string => Boolean(origin))
-    .map(origin => new URL(origin).origin),
-);
+const configuredOrigins = [
+  ...(env.APP_ORIGINS || '').split(/[,\s]+/),
+  env.APP_ORIGIN,
+  env.NODE_ENV === 'production' ? '' : 'http://localhost:3000',
+]
+  .map(origin => origin?.trim())
+  .filter((origin): origin is string => Boolean(origin));
+const allowedOrigins = new Set(configuredOrigins.map(origin => {
+  try {
+    return new URL(origin).origin;
+  } catch {
+    throw new Error(`Invalid frontend origin "${origin}" in APP_ORIGINS or APP_ORIGIN. Use comma-separated full origins, for example https://menu360.name.ng.`);
+  }
+}));
 
 const supabaseUrl = env.SUPABASE_URL;
 const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;

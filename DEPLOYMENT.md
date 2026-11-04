@@ -11,29 +11,29 @@ Run the current `supabase/schema.sql` in the correct Supabase project. Keep the 
 1. In Render, choose **New → Blueprint** and connect this repository. Render reads the root `render.yaml` and creates the `menu360-api` web service.
 2. Provide `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` when prompted. These are server-only secrets.
 3. Wait for the service to deploy. Test `https://<render-service>.onrender.com/api/health`; it should return `{"status":"ok"}`.
-4. In Render **Settings → Custom Domains**, add `api.yourdomain.com` if you want the API on your own subdomain. Render displays the DNS record target—use that exact target in Truehost.
+4. In Render **Settings → Custom Domains**, add `api.menu360.name.ng` only if you want the API on your own subdomain. Render displays the DNS record target—use that exact target in Truehost. The website domain and API domain are separate.
 5. In Render **Environment**, set `APP_ORIGINS` to a comma-separated list of exact frontend origins, for example:
 
-   `https://www.yourdomain.com,https://menuus-d7yq.vercel.app`
+   `https://menu360.name.ng,https://menuus-d7yq.vercel.app`
 
-   Include every frontend hostname you actually use. Origins include the scheme and have no trailing slash. Save changes and redeploy.
+   Include every frontend hostname you actually use (including `https://www.menu360.name.ng` if you serve the site there too). Origins include the scheme and have no trailing slash. Save changes and redeploy the API.
 
 ## 3. Deploy the frontend to Vercel
 
 1. Import the same repository into Vercel (or use its existing project), with the repository root, Vite preset, build command `npm run build`, and output directory `dist`.
-2. In Vercel **Settings → Environment Variables**, set the build-time variable `VITE_API_BASE_URL` to the Render API origin, e.g. `https://api.yourdomain.com`. Before the API custom domain is ready, you can use the exact `https://<render-service>.onrender.com` origin.
+2. In Vercel **Settings → Environment Variables**, set the build-time variable `VITE_API_BASE_URL` to the Render API origin, e.g. `https://api.menu360.name.ng`. Before the API custom domain is ready, use the exact `https://<render-service>.onrender.com` origin. Do not set this to `https://menu360.name.ng` unless the API itself is hosted there.
 3. Deploy/redeploy after setting this variable. `VITE_API_BASE_URL` is public and must contain only the API base URL—never a Supabase secret.
-4. In Vercel **Settings → Domains**, add `www.yourdomain.com`. Vercel's domain screen currently shows:
+4. In Vercel **Settings → Domains**, add `menu360.name.ng`. Optionally add `www.menu360.name.ng` and configure it to redirect to the apex domain. Vercel shows the DNS record(s) required for each hostname:
 
    | Type | Name | Value |
    | --- | --- | --- |
-   | CNAME | `www` | `1db9aac9b849ce94.vercel-dns-017.com` |
+   | As shown in Vercel | `@` (or the name shown) | Use the exact value shown in your Vercel project |
 
-5. In Truehost's DNS/Zone Editor, create or update the `www` CNAME with exactly that value. Remove a conflicting `www` record if Truehost reports one. Do not put the scheme (`https://`) in a DNS value.
-6. If adding `api.yourdomain.com`, add it to the Render service's Custom Domains and create the DNS record Render displays for the `api` host. The Vercel `www` CNAME is not the API record.
-7. Wait for Vercel and Render to verify their respective domains and provision HTTPS. Set `VITE_API_BASE_URL` to `https://api.yourdomain.com`, update Render `APP_ORIGINS` to include `https://www.yourdomain.com`, then redeploy both services.
+5. In Truehost's DNS/Zone Editor, create or update the apex (`@`) record(s) with exactly the values Vercel displays. Do the same for `www` only if you added that hostname. Remove conflicting records for those names if required. Do not put the scheme (`https://`) in a DNS value.
+6. If adding `api.menu360.name.ng`, add it to the Render service's Custom Domains and create the DNS record Render displays for the `api` host. The Vercel record is not the API record.
+7. Wait for Vercel and Render to verify their respective domains and provision HTTPS. Set `VITE_API_BASE_URL` to the API's actual origin (custom API domain or Render hostname), update Render `APP_ORIGINS` to include `https://menu360.name.ng`, then redeploy both services.
 
-The root/apex domain (`yourdomain.com`) is separate from `www`. Add it in Vercel and follow the additional DNS record Vercel displays if you also want the apex domain to work or redirect.
+The app builds storefront and QR links from the current browser origin, so they will use `https://menu360.name.ng` automatically when opened there. No frontend source-code URL change is required.
 
 ## 4. Local environment files
 
