@@ -138,7 +138,7 @@ export const DashboardLayout: React.FC = () => {
       <aside
         className={`${
           mobileMenuOpen ? 'flex' : 'hidden'
-        } md:flex flex-col ${sidebarCollapsed ? 'md:w-[76px]' : 'md:w-72'} w-full bg-stone-900 border-r border-stone-800 shrink-0 fixed md:sticky md:top-0 md:h-screen md:overflow-hidden inset-y-0 z-40 pt-16 md:pt-0 transition-[width] duration-200`}
+        } md:flex flex-col ${sidebarCollapsed ? 'md:w-[76px]' : 'md:w-72'} w-full bg-stone-900 border-r border-stone-800 shrink-0 fixed md:sticky md:top-0 md:h-screen md:overflow-hidden inset-x-0 top-16 bottom-0 md:inset-y-0 z-40 transition-[width] duration-200`}
       >
         <div className={`border-b border-stone-800 hidden md:flex items-center ${sidebarCollapsed ? 'justify-center px-2 py-4' : 'justify-between p-5'}`}>
           <Link to="/" aria-label="menu360° home">
@@ -186,7 +186,7 @@ export const DashboardLayout: React.FC = () => {
         </div>
 
         {/* Nav Links */}
-        <nav className={`flex min-h-0 flex-1 flex-col gap-1 overflow-hidden py-4 ${navCollapsed ? 'px-2' : 'px-3'}`}>
+        <nav className={`flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-4 ${navCollapsed ? 'px-2' : 'px-3'}`}>
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (

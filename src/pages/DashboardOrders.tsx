@@ -19,18 +19,23 @@ export const DashboardOrders: React.FC = () => {
   const [isLookingUpCode, setIsLookingUpCode] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
   const [orderSearch, setOrderSearch] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState('');
   const [updatingOrderId, setUpdatingOrderId] = useState('');
   const knownOrderIds = useRef(new Set(orders.map(order => order.id)));
   const sortedOrders = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const visibleOrders = sortedOrders.filter(order => {
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const query = orderSearch.trim().toLowerCase();
-    const matchesSearch = !query || order.customerName.toLowerCase().includes(query)
+    const normalizedIdQuery = normalizeOrderIdentifier(query);
+    const matchesSearch = !query || (order.customerName || '').toLowerCase().includes(query)
       || order.id.toLowerCase().includes(query)
+      || (normalizedIdQuery.length > 0 && normalizeOrderIdentifier(order.id).includes(normalizedIdQuery))
+      || (normalizedIdQuery.length > 0 && normalizeOrderIdentifier(getOrderReference(order.id)).includes(normalizedIdQuery))
       || (order.customerPhone || '').toLowerCase().includes(query)
       || (order.deliveryAddress || '').toLowerCase().includes(query);
     return matchesStatus && matchesSearch;
   });
+  const selectedOrder = visibleOrders.find(order => order.id === selectedOrderId) || visibleOrders[0];
 
   useEffect(() => {
     let active = true;
@@ -164,17 +169,18 @@ export const DashboardOrders: React.FC = () => {
           </div>
         </div>
       ) : (
-        <section className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row">
+        <section className="grid items-start gap-4 lg:grid-cols-[minmax(15rem,0.8fr)_minmax(0,1.4fr)]">
+          <div className="flex flex-col gap-3 sm:flex-row lg:col-span-2">
             <input
               value={orderSearch}
               onChange={event => setOrderSearch(event.target.value)}
-              placeholder="Search customer or order ID"
+              aria-label="Search orders by customer, contact, or order ID"
+              placeholder="Search customer, contact, or order ID"
               className="min-h-10 flex-1 rounded-xl border border-stone-800 bg-stone-900 px-4 text-sm text-white outline-none placeholder:text-stone-500 focus:border-emerald-500"
             />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {(['all', 'pending', 'completed', 'cancelled'] as const).map(status => (
-                <button key={status} type="button" onClick={() => setStatusFilter(status)} className={`min-h-10 rounded-xl px-3 text-xs font-semibold capitalize ${
+                <button key={status} type="button" onClick={() => setStatusFilter(status)} className={`min-h-10 shrink-0 rounded-xl px-3 text-xs font-semibold capitalize ${
                   statusFilter === status ? 'bg-[#008751] text-white' : 'border border-stone-800 bg-stone-900 text-stone-300 hover:bg-stone-800'
                 }`}>
                   {status === 'all' ? `All (${orders.length})` : `${status} (${orders.filter(order => order.status === status).length})`}
@@ -182,117 +188,121 @@ export const DashboardOrders: React.FC = () => {
               ))}
             </div>
           </div>
-          {visibleOrders.map(order => (
-            <div key={order.id} className={`dashboard-order-card bg-stone-900 border rounded-3xl p-4 sm:p-5 space-y-4 ${
-              newOrderIds.includes(order.id) ? 'border-emerald-500/60' : 'border-stone-800'
-            }`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-stone-800">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-bold text-white">{order.customerName}</h3>
-                    {newOrderIds.includes(order.id) && <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-300">New</span>}
-                    <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
-                      order.status === 'completed'
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : order.status === 'cancelled'
-                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                        : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                    }`}>
-                      {order.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-400 flex items-center gap-4">
-                    <span>Order ID: {order.id}</span>
-                    <span>·</span>
-                    <span>{new Date(order.createdAt).toLocaleString()}</span>
-                  </p>
+          <div aria-label="Orders" className="max-h-64 space-y-2 overflow-y-auto pr-1 lg:max-h-[calc(100vh-19rem)]">
+            {visibleOrders.map(order => (
+              <button
+                key={order.id}
+                type="button"
+                aria-pressed={selectedOrder?.id === order.id}
+                onClick={() => setSelectedOrderId(order.id)}
+                className={`dashboard-order-card block w-full rounded-2xl border p-3 text-left transition ${
+                  selectedOrder?.id === order.id
+                    ? 'border-emerald-600 bg-emerald-500/10'
+                    : newOrderIds.includes(order.id)
+                      ? 'border-emerald-500/60 bg-stone-900'
+                      : 'border-stone-800 bg-stone-900 hover:border-stone-600'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold text-white">{order.customerName}</span>
+                    <span className="mt-1 block truncate font-mono text-[11px] text-stone-400">{getOrderReference(order.id)}</span>
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                    order.status === 'completed'
+                      ? 'bg-emerald-500/20 text-emerald-700'
+                      : order.status === 'cancelled'
+                        ? 'bg-red-500/20 text-red-600'
+                        : 'bg-orange-500/20 text-orange-700'
+                  }`}>
+                    {order.status}
+                  </span>
                 </div>
+                <span className="mt-2 flex items-center justify-between gap-2 text-[11px] text-stone-500">
+                  <span className="truncate">{order.items.length} item{order.items.length === 1 ? '' : 's'} · {order.deliveryPreference === 'dine-in' ? 'Dine in' : order.deliveryPreference}</span>
+                  <span className="shrink-0">{new Date(order.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                </span>
+              </button>
+            ))}
+          </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      {order.customerPhone && order.deliveryPreference !== 'dine-in' && (
-                        <a
-                          href={getCustomerWhatsappUrl(order, currentRestaurant.currency)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-500/50 bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-                        >
-                          <MessageCircle className="h-4 w-4" /> Text customer
-                        </a>
-                      )}
-                      <button
-                        type="button"
-                        disabled={order.status !== 'pending' || updatingOrderId === order.id}
-                        onClick={() => handleUpdateStatus(order.id, 'completed')}
-                        className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 ${
-                          order.status === 'completed' ? 'border-emerald-500 bg-emerald-600 text-white' : 'border-emerald-600 bg-emerald-950/60 text-emerald-200 hover:bg-emerald-800'
-                        }`}
-                      >
-                        {updatingOrderId === order.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                        {updatingOrderId === order.id ? 'Saving…' : 'Complete'}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={order.status !== 'pending' || updatingOrderId === order.id}
-                        onClick={() => handleUpdateStatus(order.id, 'cancelled')}
-                        className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-60 ${
-                          order.status === 'cancelled' ? 'border-red-500 bg-red-600 text-white' : 'border-red-600 bg-red-950/60 text-red-200 hover:bg-red-800'
-                        }`}
-                      >
-                        <XCircle className="h-4 w-4" /> Cancel
-                      </button>
-                    </div>
+          {selectedOrder ? (
+            <article aria-label={`Details for ${getOrderReference(selectedOrder.id)}`} className="dashboard-order-info min-w-0 rounded-2xl border border-stone-800 bg-stone-900 p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-800 pb-4">
+                <div className="min-w-0">
+                  <p className="font-mono text-xs font-bold text-emerald-700">{getOrderReference(selectedOrder.id)}</p>
+                  <h3 className="mt-1 break-words text-xl font-bold text-white">{selectedOrder.customerName}</h3>
+                  <p className="mt-1 text-xs text-stone-500">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                </div>
+                {newOrderIds.includes(selectedOrder.id) && <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">New</span>}
               </div>
-
-              {/* Order details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {selectedOrder.customerPhone && selectedOrder.deliveryPreference !== 'dine-in' && (
+                  <a
+                    href={getCustomerWhatsappUrl(selectedOrder, currentRestaurant.currency)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-500/50 bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Text customer
+                  </a>
+                )}
+                <button
+                  type="button"
+                  disabled={selectedOrder.status !== 'pending' || updatingOrderId === selectedOrder.id}
+                  onClick={() => void handleUpdateStatus(selectedOrder.id, 'completed')}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-emerald-950/60 px-4 py-2 text-xs font-bold text-emerald-200 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {updatingOrderId === selectedOrder.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                  {updatingOrderId === selectedOrder.id ? 'Saving…' : selectedOrder.status === 'completed' ? 'Completed' : 'Complete'}
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedOrder.status !== 'pending' || updatingOrderId === selectedOrder.id}
+                  onClick={() => void handleUpdateStatus(selectedOrder.id, 'cancelled')}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-red-600 bg-red-950/60 px-4 py-2 text-xs font-bold text-red-200 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <XCircle className="h-4 w-4" /> Cancel
+                </button>
+              </div>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400">Order Items</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500">Order items</h4>
                   <ul className="space-y-1.5">
-                    {order.items.map((item, idx) => (
-                      <li key={idx} className="flex items-center justify-between bg-stone-800/50 px-3 py-2.5 rounded-xl border border-stone-800">
-                        <span className="text-white font-medium">{item.quantity}x {item.name}</span>
-                        <span className="text-orange-400 font-bold">₦{(item.price * item.quantity).toLocaleString()}</span>
+                    {selectedOrder.items.map((item, index) => (
+                      <li key={`${item.menuItemId}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-stone-800 bg-stone-800/50 px-3 py-2.5 text-sm">
+                        <span className="min-w-0 break-words font-medium text-white">{item.quantity} × {item.name}</span>
+                        <span className="shrink-0 font-bold text-orange-700">{currentRestaurant.currency}{(item.price * item.quantity).toLocaleString()}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-
-                <div className="dashboard-order-info space-y-3 bg-stone-800/30 p-4 sm:p-5 rounded-2xl border border-stone-800">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-400">Order & Customer Info</h4>
-                  <div className="space-y-2 text-stone-300 text-xs">
-                    <p className="flex items-center gap-2">
-                      <span className="font-semibold text-stone-400">Preference:</span>
-                      <span className="text-white font-bold">{order.deliveryPreference === 'dine-in' ? 'Dine in' : order.deliveryPreference === 'pickup' ? 'Pickup' : 'Delivery'}</span>
-                    </p>
-                    {order.customerPhone && (
-                      <a href={`tel:${order.customerPhone}`} className="flex w-fit items-center gap-2 text-stone-300 underline decoration-stone-500 underline-offset-2 hover:text-white">
-                        <Phone className="w-3.5 h-3.5 text-orange-500" />
-                        <span>{order.customerPhone}</span>
+                <div className="space-y-3 rounded-2xl border border-stone-800 bg-stone-800/30 p-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500">Customer details</h4>
+                  <div className="space-y-2 text-xs text-stone-600">
+                    <p><span className="font-semibold text-stone-500">Status:</span> <span className="font-bold capitalize text-white">{selectedOrder.status}</span></p>
+                    <p><span className="font-semibold text-stone-500">Order type:</span> <span className="font-bold text-white">{selectedOrder.deliveryPreference === 'dine-in' ? 'Dine in' : selectedOrder.deliveryPreference}</span></p>
+                    {selectedOrder.customerPhone && (
+                      <a href={`tel:${selectedOrder.customerPhone}`} className="flex w-fit items-center gap-2 underline decoration-stone-500 underline-offset-2 hover:text-white">
+                        <Phone className="h-3.5 w-3.5 text-orange-600" /><span>{selectedOrder.customerPhone}</span>
                       </a>
                     )}
-                    {order.deliveryPreference !== 'dine-in' && !order.customerPhone && (
-                      <p className="text-amber-300">No contact number was provided for this order.</p>
+                    {selectedOrder.deliveryPreference !== 'dine-in' && !selectedOrder.customerPhone && <p className="text-amber-700">No contact number was provided.</p>}
+                    {selectedOrder.deliveryAddress && (
+                      <p className="flex items-start gap-2 break-words"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-orange-600" /><span>{selectedOrder.deliveryAddress}</span></p>
                     )}
-                    {order.deliveryAddress && (
-                      <p className="flex items-start gap-2">
-                        <MapPin className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
-                        <span>{order.deliveryAddress}</span>
-                      </p>
-                    )}
-                    {order.specialInstructions && (
-                      <p className="pt-2 text-stone-400 italic">
-                        " {order.specialInstructions} "
-                      </p>
-                    )}
+                    {selectedOrder.specialInstructions && <p className="whitespace-pre-line pt-2 italic text-stone-500">{selectedOrder.specialInstructions}</p>}
                   </div>
-                  <div className="pt-4 border-t border-stone-800 flex items-center justify-between">
-                    <span className="font-bold text-stone-400">Total Amount:</span>
-                    <span className="text-lg font-black text-white">₦{order.totalAmount.toLocaleString()}</span>
+                  <div className="flex items-center justify-between gap-3 border-t border-stone-800 pt-3">
+                    <span className="text-sm font-bold text-stone-500">Total</span>
+                    <span className="text-lg font-black text-white">{currentRestaurant.currency}{selectedOrder.totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            </article>
+          ) : (
+            <p className="rounded-2xl border border-stone-800 bg-stone-900 p-5 text-sm text-stone-500">Select an order to see its details.</p>
+          )}
         </section>
       )}
     </div>
@@ -302,11 +312,19 @@ export const DashboardOrders: React.FC = () => {
 function getCustomerWhatsappUrl(order: Order, currency: string) {
   const phone = (order.customerPhone || '').replace(/\D/g, '');
   const message = [
-    `Hello ${order.customerName}, this is the restaurant following up on your ${order.deliveryPreference} order ${order.id}.`,
+    `Hello ${order.customerName}, this is the restaurant following up on your ${order.deliveryPreference} order ${getOrderReference(order.id)}.`,
     `Items: ${order.items.map(item => `${item.quantity} × ${item.name}`).join(', ')}`,
     `Order total: ${currency}${order.totalAmount.toLocaleString()}`,
     ...(order.deliveryAddress ? [`Delivery address: ${order.deliveryAddress}`] : []),
     'Please reply so we can confirm availability and arrange your order.',
   ].join('\n');
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+function getOrderReference(orderId: string) {
+  return `M360-${orderId.slice(0, 8).toUpperCase()}`;
+}
+
+function normalizeOrderIdentifier(value: string) {
+  return value.replace(/[^a-z0-9]/gi, '').toLowerCase();
 }

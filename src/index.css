@@ -308,7 +308,7 @@ body {
 
 @media print {
   @page {
-    margin: 0.5in;
+    margin: 0.25in;
   }
 
   body * {
@@ -321,25 +321,44 @@ body {
   }
 
   [data-qr-page] {
-    position: absolute !important;
+    position: fixed !important;
     inset: 0 !important;
+    display: grid !important;
+    place-items: center !important;
     width: 100% !important;
+    height: 100% !important;
     max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+
+  [data-qr-page] > .grid {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
   }
 
   .qr-screen-only {
     display: none !important;
   }
 
+  [data-qr-page] > .grid > section:not(.qr-screen-only) {
+    margin: 0 !important;
+  }
+
   .qr-print-card {
     width: 3.75in !important;
-    max-width: 100% !important;
+    max-width: calc(100vw - 0.5in) !important;
+    height: auto !important;
+    aspect-ratio: 607 / 914 !important;
     margin: 0 auto !important;
     border: 1px solid #d8d2c4 !important;
+    border-radius: 0.18in !important;
     box-shadow: none !important;
-    break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
   }
 }
 

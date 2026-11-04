@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { ArrowUpRight, Building2, Eye, ShoppingBag, ShieldCheck, Users, UserPlus, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StorageService } from '../services/storage';
+import { AuthService } from '../services/auth';
 import { AdminAnalytics, AdminRestaurant, PlatformSettings } from '../types';
 import { Menu360AdireBand, Menu360Logo } from '../components/Menu360Brand';
 
 export const AdminDashboard: React.FC = () => {
+  const [accessState, setAccessState] = useState<'checking' | 'allowed' | 'denied'>('checking');
+  const [accessError, setAccessError] = useState('');
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings | null>(null);
@@ -50,7 +53,24 @@ export const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    void loadRestaurants();
+    let active = true;
+    AuthService.getSession().then(({ user }) => {
+      if (!active) return;
+      if (user.role !== 'admin') {
+        setAccessError('Administrator access is required to view platform controls.');
+        setAccessState('denied');
+        setIsLoading(false);
+        return;
+      }
+      setAccessState('allowed');
+      void loadRestaurants();
+    }).catch((sessionError: unknown) => {
+      if (!active) return;
+      setAccessError(sessionError instanceof Error ? sessionError.message : 'Could not verify administrator access.');
+      setAccessState('denied');
+      setIsLoading(false);
+    });
+    return () => { active = false; };
   }, []);
 
   const updateStatus = async (restaurant: AdminRestaurant) => {
@@ -85,6 +105,27 @@ export const AdminDashboard: React.FC = () => {
       setUpdatingId('');
     }
   };
+
+  if (accessState === 'checking') {
+    return <div data-dashboard className="flex min-h-screen items-center justify-center bg-stone-950 p-6 text-sm text-stone-500">Checking administrator access…</div>;
+  }
+
+  if (accessState === 'denied') {
+    return (
+      <div data-dashboard className="flex min-h-screen items-center justify-center bg-stone-950 p-5 text-stone-100 sm:p-8">
+        <section className="w-full max-w-lg rounded-3xl border border-stone-800 bg-stone-900 p-6 sm:p-8">
+          <Link to="/" aria-label="menu360° home" className="mb-6 inline-flex"><Menu360Logo markSize={44} /></Link>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500">Platform control room</p>
+          <h1 className="mt-2 text-2xl font-semibold text-white">Admin access required</h1>
+          <p role="alert" className="mt-3 text-sm leading-6 text-stone-500">{accessError}</p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link to="/login" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white">Sign in</Link>
+            <Link to="/dashboard" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-stone-700 px-4 py-2 text-sm font-semibold text-stone-300">Merchant dashboard</Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div data-dashboard className="min-h-screen bg-stone-950 p-5 text-stone-100 sm:p-8">

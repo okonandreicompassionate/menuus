@@ -62,18 +62,17 @@ export const DashboardStorefront: React.FC = () => {
       if (!context) throw new Error('Your browser could not create the QR artwork.');
 
       context.scale(2, 2);
+      context.save();
+      roundedRect(context, 8, 8, 591, 898, 42);
+      context.clip();
       context.fillStyle = '#FBF6EA';
       context.fillRect(0, 0, 607, 914);
-      context.strokeStyle = '#E5DDC9';
-      context.lineWidth = 2;
-      roundedRect(context, 8, 8, 591, 898, 42);
-      context.stroke();
 
       context.fillStyle = '#0B2E1F';
       roundedRect(context, 9, 8, 589, 260, 42);
       context.fill();
       context.fillRect(9, 48, 589, 220);
-      drawAdireBand(context, 8, 48, 591);
+      drawAdireBand(context, 8, 8, 591, 48);
       context.fillStyle = '#F2A31B';
       context.fillRect(8, 267, 591, 6);
 
@@ -143,7 +142,13 @@ export const DashboardStorefront: React.FC = () => {
       context.fillText('EVERY DISH, EVERY ANGLE.', 303.5, 797);
       context.fillStyle = '#F2A31B';
       context.fillRect(8, 838, 591, 6);
-      drawAdireBand(context, 844, 62, 591);
+      drawAdireBand(context, 8, 844, 591, 62);
+      context.restore();
+
+      context.strokeStyle = '#E5DDC9';
+      context.lineWidth = 2;
+      roundedRect(context, 8, 8, 591, 898, 42);
+      context.stroke();
 
       const imageBlob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not export the QR artwork.')), 'image/png');
@@ -271,33 +276,33 @@ function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, wi
   context.roundRect(x, y, width, height, radius);
 }
 
-function drawAdireBand(context: CanvasRenderingContext2D, y: number, height: number, width: number) {
+function drawAdireBand(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
   context.save();
   context.beginPath();
-  context.rect(0, y, width, height);
+  context.rect(x, y, width, height);
   context.clip();
   context.fillStyle = '#008751';
-  context.fillRect(0, y, width, height);
-  for (let x = 20; x < width; x += 40) {
+  context.fillRect(x, y, width, height);
+  for (let bandX = x + 20; bandX < x + width; bandX += 40) {
     for (let bandY = y + 20; bandY < y + height + 20; bandY += 40) {
       context.beginPath();
-      context.arc(x, bandY, 14, 0, Math.PI * 2);
+      context.arc(bandX, bandY, 14, 0, Math.PI * 2);
       context.strokeStyle = '#FBF6EA';
       context.lineWidth = 2.5;
       context.stroke();
       context.beginPath();
-      context.arc(x, bandY, 6.5, 0, Math.PI * 2);
+      context.arc(bandX, bandY, 6.5, 0, Math.PI * 2);
       context.fillStyle = '#F2A31B';
       context.fill();
       context.beginPath();
-      context.moveTo(x - 20, bandY - 20);
-      context.lineTo(x - 14, bandY - 14);
-      context.moveTo(x + 20, bandY - 20);
-      context.lineTo(x + 14, bandY - 14);
-      context.moveTo(x - 20, bandY + 20);
-      context.lineTo(x - 14, bandY + 14);
-      context.moveTo(x + 20, bandY + 20);
-      context.lineTo(x + 14, bandY + 14);
+      context.moveTo(bandX - 20, bandY - 20);
+      context.lineTo(bandX - 14, bandY - 14);
+      context.moveTo(bandX + 20, bandY - 20);
+      context.lineTo(bandX + 14, bandY - 14);
+      context.moveTo(bandX - 20, bandY + 20);
+      context.lineTo(bandX - 14, bandY + 14);
+      context.moveTo(bandX + 20, bandY + 20);
+      context.lineTo(bandX + 14, bandY + 14);
       context.strokeStyle = '#FBF6EA';
       context.lineWidth = 2.5;
       context.stroke();
