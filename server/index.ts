@@ -21,6 +21,7 @@ const sessionLifetimeMs = 7 * 24 * 60 * 60 * 1000;
 const configuredOrigins = [
   'https://menu360.name.ng',
   'https://www.menu360.name.ng',
+  'https://menuus-d7yq.vercel.app',
   ...(env.APP_ORIGINS || '').split(/[,\s]+/),
   env.APP_ORIGIN,
   env.NODE_ENV === 'production' ? '' : 'http://localhost:3000',
