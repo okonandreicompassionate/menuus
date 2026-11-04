@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <circle
+    cx="80"
+    cy="80"
+    r="70"
+    fill="none"
+    stroke="#D9480F"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-dasharray="400 40"
+    transform="rotate(-60 80 80)"
+  />
+  <g transform="translate(76.3 10.1) rotate(-3)">
+    <polygon points="-4,-14 -4,14 18,0" fill="#D9480F" />
+  </g>
+  <circle cx="80" cy="80" r="48" fill="#008751" />
+  <path
+    d="M60 62V76Q60 83 66 83Q72 83 72 76V62M66 62V100M94 62V100"
+    fill="none"
+    stroke="#FBF6EA"
+    stroke-width="4.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M94 62C103 66 103 82 94 86Z"
+    fill="#FBF6EA"
+    stroke="#FBF6EA"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+</svg>
